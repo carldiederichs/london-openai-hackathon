@@ -70,6 +70,7 @@ test("lobby capacity, identity, room isolation and public secret filtering", asy
     20,
   );
   assert.ok(accessible({ stats: room.hiderStats }, room.dot));
+  assert.ok(room.pets.some((p) => accessible(p, room.dot)));
   assert.throws(
     () =>
       rooms.submit(
@@ -226,17 +227,47 @@ test("breeding needs reciprocal consent and only grants a baby next round", asyn
 test("one cheering advantage, tie, expiry, and four-round escape", async () => {
   const { rooms, host, room } = await setup();
   await rooms.start(host);
-  rooms.cheer(host, { seekers: 0.6, todd: 0.2, method: "microphone" });
+  rooms.cheer(host, {
+    seekers: 0.6,
+    todd: 0.2,
+    method: "microphone",
+    round: 1,
+    generation: 1,
+  });
   assert.match(room.clue!, /wing|grounds/);
   assert.throws(
-    () => rooms.cheer(host, { seekers: 1, todd: 0, method: "manual" }),
+    () =>
+      rooms.cheer(host, {
+        seekers: 1,
+        todd: 0,
+        method: "manual",
+        round: 1,
+        generation: 1,
+      }),
     /One/,
   );
   await rooms.resolve(host, 1, 1);
   await rooms.next(host);
   assert.equal(room.cheer, null);
   assert.equal(room.clue, null);
-  rooms.cheer(host, { seekers: 0.4, todd: 0.4, method: "manual" });
+  assert.throws(
+    () =>
+      rooms.cheer(host, {
+        seekers: 1,
+        todd: 0,
+        method: "manual",
+        round: 1,
+        generation: 1,
+      }),
+    /closed round/,
+  );
+  rooms.cheer(host, {
+    seekers: 0.4,
+    todd: 0.4,
+    method: "manual",
+    round: 2,
+    generation: 1,
+  });
   assert.equal(rooms.public(room.code).cheer?.advantage, null);
   await rooms.resolve(host, 2, 1);
   await rooms.next(host);

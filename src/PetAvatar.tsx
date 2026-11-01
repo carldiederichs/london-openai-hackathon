@@ -1,4 +1,4 @@
-import type { Pet } from "./game";
+import type { Pet } from "./pets";
 
 export default function PetAvatar({
   pet,

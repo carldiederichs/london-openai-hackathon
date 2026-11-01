@@ -1,37 +1,29 @@
-# Live-game expansion
+# Live game design
 
-Approved direction: add phone joining, model-powered moves, and cheering input after making the first local prototype PR ready. This document describes follow-up work, not implemented features.
+The sole game mode uses four rounds and one capture to win; the earlier 2D prototype was removed. Ten human players remain seekers. Todd is a shadow of a randomly chosen seeker, with the nearest distinct ability allocation under the same 20-point budget. Its appearance is an OpenAI-style dot, not a copy of the seeker's sprite.
 
-## Intended experience
+The server owns game state. Clients receive public pet cards, connection/submission status, audience results and resolved events. They never receive active hiding locations, current submitted prompts, traps, reset placement or other clients' credentials. Host and player sessions authenticate separately.
 
-- A host opens the castle on the big screen. Ten phone players join with a QR code and bring an image or describe their pet.
-- Give each pet a card with a fixed budget, initially 20 points across five agreed stats. Suggested stats are flight, smallness, speed, climb, and swim. A larger smallness score should mean better access to narrow passages to avoid inverted comparisons.
-- Players submit one action each round. Seeking prompts follow a constraint such as eight words, emoji only, or a rhyme. The model proposes a move; the server checks it against the pet's abilities and usage.
-- An AI-controlled hider chooses from legal hiding spots. Show a short in-character explanation and a misleading public claim. Keep the actual hiding place out of player payloads and live explanations until its reveal.
-- Two audience teams compete for one temporary rule change per round. Measure each side in separate timed microphone windows so one room microphone can compare them. Include a labelled manual host fallback for unavailable microphones or a noisy venue.
-- Retain the requested bottle traps, breeding, vet, and Tivo reset, with all changes enforced by the server.
+Model output supplies card flavor, stat weights, legal move choices and a brief fictional hider explanation. Deterministic code enforces stat totals, room gates, costs, player ownership, one action per round and outcomes. Responses use strict JSON schemas and `store: false`; malformed, incomplete or failed responses trigger labelled offline behavior. No chain-of-thought is requested or shown.
 
-## Rules to settle in the live implementation
+A seeking prompt selects an accessible destination. Flight unlocks Context Tower, smallness Token Attic, climb Hallucination Hall, speed The Black Box, and swim Streaming Moat. Garden, tavern and courtyard are open. Todd must choose a room accessible to its own card and at least one ready seeker, avoiding an unwinnable hiding spot for a small party. It does not receive seekers' current submissions.
 
-The latest proposal suggests four rounds and a single discovery to win; the local prototype uses three rounds and three discoveries. Make that change explicit in the live mode and its instructions.
+Round constraints are eight words, emoji, a two-line rhyme, and eight words. Offline rhyme checking compares the final two English letters and is deliberately approximate. Offline image-only cards derive a balanced card from the name; visual interpretation requires a model. The fallback draws an original species avatar or displays the uploaded image. Native desktop pet-folder or sprite-sheet imports are not assumed.
 
-Ten human seekers plus one AI hider conflicts with turning one of the ten human-owned pets into the hider. Resolve this before implementation. A shadow copy of a player's pet could preserve ten seeker roles while inheriting that pet's ability limits.
+Breeding requires reciprocal player requests. Resolution sorts by speed, then stable pet ID. The first parent owns the baby. One action remains attached to the player, not each owned pet. A failed asynchronous round restores game state and retains submissions while preserving current connection status.
 
-Decide how newborn pets are assigned to a phone player and whether a breed request needs both parents' consent. A fixed stat budget balances total points, but room distribution still needs playtesting so no stat becomes dominant.
+Audience input measures sequential windows on one host microphone. Only aggregate scores leave the browser. Manual results are labelled. Round and generation checks reject old measurements. All advantages expire at the next round. Audio tracks stop on completion, cancellation or phase change.
 
-## Implementation boundary
+The 3D world uses original Three.js geometry inspired by Ardross Castle's sandstone frontage, square tower, slate roofs, bay windows, corner turrets, curved terrace and woodland. Room positions and the stream are adapted for gameplay. No show logo, stills, or third-party castle model is bundled. The visual reference is [Ardross Castle's official exterior gallery](https://ardrosscastle.co.uk/); its site confirms the UK and US Traitors filming connection.
 
-Use an authoritative room server, player reconnect tokens, host-only round resolution, and validated submissions. Keep API keys exclusively on the server. Resolve a round only once, handle disconnected players explicitly, and display when an offline fallback replaces an AI decision.
+## References
 
-Phone joining on a local network requires a reachable host address; localhost on a phone points to that phone. Venue client isolation may prevent LAN access. Microphone capture requires a supported secure context and explicit browser permission. A local host can capture cheering on localhost while phones submit actions over the LAN.
+- [OpenAI Showcase](https://developers.openai.com/showcase), especially [Codex Pet Arena](https://developers.openai.com/showcase/codex-pet-arena) and [Turn-based RPG](https://developers.openai.com/showcase/turn-based-rpg).
+- [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs) for the custom card and move schemas.
+- [GPT-4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini) for image input and structured Responses support.
+- [Decisions API](https://developers.openai.com/api/docs/guides/decisions#choose-a-question-type): choice/score/predicate calls differ from the custom JSON objects used here.
+- [Three.js documentation](https://threejs.org/docs/) for WebGL rendering, scene objects, raycasting and orbit controls.
 
-Do not assume access to a particular desktop pet folder or sprite format. The image upload fallback already works in the prototype. Description-to-pet creation and native sprite import still need implementation and verification.
+This is a local multiplayer build, with in-memory rooms and no production deployment. See the verification record for observed evidence and remaining device/credential checks.
 
-## References reviewed
-
-- [OpenAI Showcase](https://developers.openai.com/showcase): useful game and interaction examples.
-- [Codex Pet Arena](https://developers.openai.com/showcase/codex-pet-arena): an example of starting with a playable loop and adding animated pets and effects in later passes.
-- [Turn-based RPG](https://developers.openai.com/showcase/turn-based-rpg): a model-backed game reference.
-- [Decisions API](https://developers.openai.com/api/docs/guides/decisions#choose-a-question-type): supports predicates, choices, and scores. Its documentation recommends Structured Outputs with Responses for custom JSON objects and explanations. Use that distinction when selecting an API for pet cards and move proposals.
-
-No live model request has been verified in this PR.
+The world fills the viewport with transparent controls at the left and right only. Secondary panels open on demand. Entering a castle room lifts/fades the upper exterior and shows furnished cutaway rooms; leaving closes it. The original 2D UI, engine, route, tests and icon dependency were deleted.

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { createGame } from "../game";
+import { PREVIEW_PETS } from "../pets";
 import PetAvatar from "../PetAvatar";
 import {
   accessible,
@@ -27,7 +27,7 @@ import {
 import Cheering from "./Cheering";
 import "./live.css";
 const CastleWorld = lazy(() => import("./CastleWorld"));
-const previewPets = createGame(42).pets;
+const previewPets = PREVIEW_PETS;
 const locationName = (id: string) =>
   LIVE_LOCATIONS.find((l) => l.id === id)?.name ||
   ({ camp: "Base camp", vet: "The vet", nursery: "Nursery" }[id] ?? id);
@@ -77,8 +77,6 @@ function QRJoin({ code, base }: { code: string; base: string }) {
         />
       )}
       <div>
-        <p className="eyebrow">BRING YOUR OWN PET</p>
-        <h2>Scan. Join. Cause trouble.</h2>
         <p>Same Wi-Fi as the host. Up to ten players.</p>
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
@@ -135,12 +133,7 @@ function JoinForm({
   }
   return (
     <section className="live-panel join-form">
-      <p className="eyebrow">ROOM {code}</p>
-      <h1>Meet your guardian.</h1>
-      <p>
-        Upload a pet image or describe something wonderfully weird. Every pet
-        gets the same 20-point budget.
-      </p>
+      <p>Upload an image or describe your pet. Every card has 20 points.</p>
       <form onSubmit={join}>
         <label>
           Pet name
@@ -201,7 +194,7 @@ function JoinForm({
           disabled={busy || reading || (!image && !description.trim())}
         >
           {busy
-            ? "Hatching your card…"
+            ? "Creating card…"
             : reading
               ? "Preparing image…"
               : "Join the hunt"}
@@ -280,8 +273,7 @@ function PlayerControls({
       <div className="pet-identity">
         <PetAvatar pet={pet} />
         <div>
-          <p className="eyebrow">YOUR GUARDIAN</p>
-          <h2>{pet.name}</h2>
+          <strong className="pet-name">{pet.name}</strong>
           <small>
             {pet.origin === "ai"
               ? "AI card"
@@ -313,17 +305,19 @@ function PlayerControls({
           </select>
         </label>
       )}
-      <p>{pet.flavor}</p>
+
       <div className="usage-row">
         <span>Usage limit</span>
         <strong>{pet.usage} / 100</strong>
       </div>
       <progress max={100} value={pet.usage} aria-label="Pet usage" />
-      <StatsCard stats={pet.stats} />
-      <p className="stat-help">
-        20 points total. A score of 5 unlocks a specialist room. Speed also
-        decides action order.
-      </p>
+      <details>
+        <summary>Abilities · 20 points</summary>
+        <StatsCard stats={pet.stats} />
+        <small>
+          A score of 5 unlocks its room. Speed decides action order.
+        </small>
+      </details>
       {room.phase === "lobby" ? (
         <p className="state-note">
           You're in! Waiting for the host to start the hunt.
@@ -348,8 +342,7 @@ function PlayerControls({
           </label>
           {action === "seek" ? (
             <>
-              <h3>{rule.name}</h3>
-              <p>{rule.help}</p>
+              <p className="prompt-rule">{rule.help}</p>
               <label>
                 Your seeking prompt
                 <textarea
@@ -447,7 +440,11 @@ export default function LiveApp() {
     } | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirm, setConfirm] = useState<"restart" | "resolve" | null>(null);
+    [confirm, setConfirm] = useState<"restart" | "resolve" | null>(null),
+    [panel, setPanel] = useState<
+      "rooms" | "players" | "log" | "rules" | "join" | "cheer" | null
+    >(null),
+    [joinOpen, setJoinOpen] = useState(false);
   useEffect(() => {
     fetch("/api/config")
       .then((r) => {
@@ -502,84 +499,292 @@ export default function LiveApp() {
   )
     ? config?.joinBase || window.location.origin
     : window.location.origin;
-  return (
-    <div className="live-app">
-      <header className="live-header">
-        <a href="/">
-          ♜ promptkeep<span>.</span>
-        </a>
-        <span>
-          {room
-            ? `ROOM ${room.code} · ${isHost ? "HOST" : "SEEKER"}`
-            : "HALLOWEEN AT THE KEEP"}
-        </span>
-        <a href="/prototype">Classic prototype ↗</a>
-      </header>
-      <main>
-        <div className="live-hero">
-          <div>
-            <p className="eyebrow">TEN PETS. ONE SUSPICIOUS DOT.</p>
-            <h1>
-              {room ? (
-                room.phase === "lobby" ? (
-                  "Gather your guardians."
-                ) : room.outcome === "caught" ? (
-                  "A very caught dot."
-                ) : room.outcome === "escaped" ? (
-                  "A very slippery dot."
-                ) : (
-                  `The hunt is on. Round ${room.round}.`
-                )
-              ) : (
-                <>
-                  A little castle.
-                  <br />A lot of mischief.
-                </>
-              )}
-            </h1>
-            <p>
-              {room?.outcome === "caught"
-                ? "The seekers caught Todd. Promptkeep is safe, for now."
-                : room?.outcome === "escaped"
-                  ? "Four rounds, one great escape. The dot gets the last laugh."
-                  : "Bring your pet. Follow the clues. Catch Todd before the fourth round."}
-            </p>
-          </div>
-          <div className="todd-intro">
-            <span
-              className="todd-face"
-              aria-label="Todd, a black dot with white eyes"
-            >
-              ••
+  const toggle = (next: typeof panel) =>
+    setPanel((current) => (current === next ? null : next));
+  const roomMenu = (
+    <div className="glass room-list" aria-label="Castle rooms">
+      {LIVE_LOCATIONS.map((l, i) => {
+        const g = GATES[l.id],
+          can = !pet || accessible(pet, l.id);
+        return (
+          <button
+            key={l.id}
+            aria-pressed={selected === l.id}
+            onClick={() => setSelected(l.id)}
+          >
+            <span>
+              {i + 1} · {l.name}
+              {!can ? " · locked" : ""}
             </span>
-            <p>
-              “{room?.claim || "I have reviewed myself and found no issues."}”
-            </p>
-            <small>TODD · DEFINITELY ALIGNED</small>
+            <small>
+              {room?.ruledOut.includes(l.id)
+                ? "Ruled out"
+                : g
+                  ? `${STAT_LABELS[g.stat]} ${g.min}+`
+                  : "Open"}
+            </small>
+          </button>
+        );
+      })}
+      <p>{roomInfo.subtitle}</p>
+    </div>
+  );
+  return (
+    <main
+      className={`live-app ${code && role === "player" ? "has-player" : ""} ${panel ? "panel-open" : ""}`}
+      aria-label="Castle hide and seek"
+    >
+      <Suspense
+        fallback={
+          <div className="world-loading" role="status">
+            Loading castle…
           </div>
-        </div>
-        <div className="live-status">
-          <span className="pill">
-            {ai?.configured
-              ? `AI enabled · ${ai.model}`
-              : "Offline mode · no API key"}
-          </span>
-          {room && (
+        }
+      >
+        <CastleWorld
+          pets={room?.pets || previewPets}
+          selected={selected}
+          todd={room?.reveal?.location}
+          onSelect={(id) => {
+            setSelected(id);
+            setPanel("rooms");
+          }}
+          allowed={allowed}
+        />
+      </Suspense>
+      <aside className="hud hud-left" aria-label="Room controls">
+        <div className="glass session-controls">
+          {!code ? (
             <>
-              <span className="pill">
-                {connected ? "● Connected" : "○ Reconnecting…"}
-              </span>
-              <span>
-                {room.players.length}/10 seekers · {room.submitted.length}/
-                {room.players.length} moves locked
-              </span>
-              <span>{room.ai.fallbackCount} fallback decisions</span>
+              <button
+                className="primary"
+                disabled={busy || !config}
+                onClick={create}
+              >
+                {busy ? "Creating…" : "Create room"}
+              </button>
+              <button
+                aria-expanded={joinOpen}
+                onClick={() => setJoinOpen(!joinOpen)}
+              >
+                Join room
+              </button>
+              {joinOpen && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    window.location.assign(`/play/${joinCode.toUpperCase()}`);
+                  }}
+                >
+                  <label>
+                    Room code
+                    <input
+                      aria-label="Room code"
+                      pattern="[A-Za-z0-9]{6}"
+                      required
+                      maxLength={6}
+                      value={joinCode}
+                      onChange={(e) =>
+                        setJoinCode(e.target.value.toUpperCase())
+                      }
+                      placeholder="ABC123"
+                    />
+                  </label>
+                  <button type="submit">Join</button>
+                </form>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="room-line">
+                <a
+                  href="/"
+                  aria-label="Return to room creation"
+                  title="Return to room creation"
+                >
+                  ←
+                </a>
+                <span>{code}</span>
+                {room && <span>R{room.round}/4</span>}
+                <i
+                  className={connected ? "online" : "offline"}
+                  title={connected ? "Connected" : "Reconnecting"}
+                  aria-label={connected ? "Connected" : "Reconnecting"}
+                />
+              </div>
+              {room && (
+                <small>
+                  {room.players.length}/10 players · {room.submitted.length}/
+                  {room.players.length} ready
+                </small>
+              )}
             </>
           )}
-          <small>Four rounds · one capture · ten human seekers</small>
+          <small className="ai-label">
+            {ai?.configured ? "AI enabled" : "Offline rules"}
+            {room && room.ai.fallbackCount > 0
+              ? ` · ${room.ai.fallbackCount} fallbacks`
+              : ""}
+          </small>
+          {room && isHost && (
+            <div className="round-buttons">
+              {room.phase === "lobby" && (
+                <button
+                  className="primary"
+                  disabled={busy || !connected || !room.players.length}
+                  onClick={() => command("host:start")}
+                >
+                  Start hunt
+                </button>
+              )}
+              {room.phase === "seeking" && (
+                <button
+                  className="primary"
+                  disabled={busy || !connected}
+                  onClick={() =>
+                    room.submitted.length < room.players.length
+                      ? setConfirm("resolve")
+                      : command("host:resolve", {
+                          round: room.round,
+                          generation: room.generation,
+                        })
+                  }
+                >
+                  Resolve {room.submitted.length} moves
+                </button>
+              )}
+              {room.phase === "results" && (
+                <button
+                  className="primary"
+                  disabled={busy || !connected}
+                  onClick={() => command("host:next")}
+                >
+                  Next round
+                </button>
+              )}
+              {["hiding", "resolving"].includes(room.phase) && (
+                <p role="status">
+                  {room.phase === "hiding"
+                    ? "Todd is hiding…"
+                    : "Resolving moves…"}
+                </p>
+              )}
+              <button
+                disabled={
+                  busy ||
+                  !connected ||
+                  ["hiding", "resolving"].includes(room.phase)
+                }
+                onClick={() => setConfirm("restart")}
+              >
+                Reset hunt
+              </button>
+            </div>
+          )}
         </div>
+        <nav className="glass side-tools" aria-label="Game panels">
+          <button
+            aria-label="Rooms"
+            title="Rooms"
+            aria-pressed={panel === "rooms"}
+            onClick={() => toggle("rooms")}
+          >
+            <span className="tool-icon" aria-hidden="true">
+              ◇
+            </span>
+            <span className="tool-name">Rooms</span>
+          </button>
+          {room && (
+            <>
+              <button
+                aria-label="Players"
+                title="Players"
+                aria-pressed={panel === "players"}
+                onClick={() => toggle("players")}
+              >
+                <span className="tool-icon" aria-hidden="true">
+                  ♟
+                </span>
+                <span className="tool-name">Players</span>
+              </button>
+              <button
+                aria-label="Log"
+                title="Log"
+                aria-pressed={panel === "log"}
+                onClick={() => toggle("log")}
+              >
+                <span className="tool-icon" aria-hidden="true">
+                  ≡
+                </span>
+                <span className="tool-name">Log</span>
+              </button>
+              {isHost && (
+                <>
+                  <button
+                    aria-label="Invite"
+                    title="Invite"
+                    aria-pressed={panel === "join"}
+                    onClick={() => toggle("join")}
+                  >
+                    <span className="tool-icon" aria-hidden="true">
+                      +
+                    </span>
+                    <span className="tool-name">Invite</span>
+                  </button>
+                  <button
+                    aria-label="Audience"
+                    title="Audience"
+                    aria-pressed={panel === "cheer"}
+                    onClick={() => toggle("cheer")}
+                  >
+                    <span className="tool-icon" aria-hidden="true">
+                      ♪
+                    </span>
+                    <span className="tool-name">Audience</span>
+                  </button>
+                </>
+              )}
+            </>
+          )}
+          <button
+            aria-label="Rules"
+            title="Rules"
+            aria-pressed={panel === "rules"}
+            onClick={() => toggle("rules")}
+          >
+            <span className="tool-icon" aria-hidden="true">
+              ?
+            </span>
+            <span className="tool-name">Rules</span>
+          </button>
+        </nav>
+        {panel === "rooms" && roomMenu}
+        {confirm && (
+          <div className="glass confirm-panel" role="alert">
+            <p>
+              {confirm === "resolve"
+                ? `${room!.players.length - room!.submitted.length} players will rest. Resolve now?`
+                : "Reset this hunt? Players keep their original pets; babies and progress are cleared."}
+            </p>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() =>
+                command(
+                  confirm === "resolve" ? "host:resolve" : "host:restart",
+                  confirm === "resolve"
+                    ? { round: room!.round, generation: room!.generation }
+                    : {},
+                )
+              }
+            >
+              {confirm === "resolve" ? "Resolve anyway" : "Restart hunt"}
+            </button>
+            <button onClick={() => setConfirm(null)}>Cancel</button>
+          </div>
+        )}
         {(error || connectionError) && (
-          <div className="live-error" role="alert">
+          <div className="glass live-error" role="alert">
             {error || connectionError}
             {session && connectionError && (
               <button
@@ -590,339 +795,136 @@ export default function LiveApp() {
                   window.location.reload();
                 }}
               >
-                Forget this session
+                Forget session
               </button>
             )}
           </div>
         )}
-        {!code && (
-          <section className="launch-panel">
-            <button
-              className="primary"
-              disabled={busy || !config}
-              onClick={create}
-            >
-              {busy ? "Opening the gates…" : "Host a live hunt →"}
-            </button>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                window.location.assign(`/play/${joinCode.toUpperCase()}`);
-              }}
-            >
-              <label>
-                Have a room code?
-                <input
-                  aria-label="Room code"
-                  pattern="[A-Za-z0-9]{6}"
-                  required
-                  maxLength={6}
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="ABC123"
-                />
-              </label>
-              <button>Join room</button>
-            </form>
-            <p>
-              One shared screen. Ten phones.
-              <br />
-              No accounts, just pets.
-            </p>
-          </section>
+        {room?.outcome && (
+          <p className="glass outcome" role="status">
+            {room.outcome === "caught"
+              ? "Todd caught. Seekers win."
+              : "Todd escaped after four rounds."}
+          </p>
+        )}
+      </aside>
+      <aside className="hud hud-right" aria-label="Player and game details">
+        {panel === "rooms" && code && role === "player" && (
+          <div className="mobile-room-panel">{roomMenu}</div>
         )}
         {code &&
           !session &&
           (role === "player" ? (
             <JoinForm code={code} onJoined={joined} />
           ) : (
-            <section className="live-panel">
-              <h2>This tab has no host session.</h2>
+            <div className="glass">
               <p>
-                Return to the tab that created this room, or start a new hunt
-                from the home page.
+                No host session in this tab. Return to the tab that created this
+                room.
               </p>
-              <a href="/">Back to the castle</a>
-            </section>
+              <a href="/">Create another room</a>
+            </div>
           ))}
-        {session && !room && <p role="status">Connecting to room {code}…</p>}
-        <div className={`live-layout ${room && !isHost ? "has-player" : ""}`}>
-          <div className="world-column">
-            <Suspense
-              fallback={
-                <div className="world-fallback">Opening the castle…</div>
-              }
-            >
-              <CastleWorld
-                pets={room?.pets || previewPets}
-                selected={selected}
-                todd={room ? room.reveal?.location : null}
-                onSelect={setSelected}
-                allowed={allowed}
-              />
-            </Suspense>
-            <div className="room-buttons" aria-label="Castle rooms">
-              {LIVE_LOCATIONS.map((l, i) => {
-                const g = GATES[l.id],
-                  can = !pet || accessible(pet, l.id);
-                return (
-                  <button
-                    key={l.id}
-                    aria-pressed={selected === l.id}
-                    onClick={() => setSelected(l.id)}
-                  >
-                    <span>
-                      {i + 1}. {l.name} {!can ? "🔒" : ""}
-                    </span>
-                    <small>
-                      {room?.ruledOut.includes(l.id)
-                        ? "Ruled out this round"
-                        : g
-                          ? `${STAT_LABELS[g.stat]} ${g.min}+`
-                          : "Open to every pet"}
-                    </small>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="room-detail">
-              <strong>{roomInfo.name}</strong>
-              <span>{roomInfo.subtitle}</span>
-              <small>
-                {gate
-                  ? `${STAT_LABELS[gate.stat]} ${gate.min}+ required`
-                  : "No ability requirement"}
-                {pet && !accessible(pet, selected)
-                  ? " · Your pet cannot enter"
-                  : ""}
-              </small>
-            </div>
-            {room?.clue && (
-              <p className="state-note" role="status">
-                ♪ {room.clue}
-              </p>
-            )}
-            {room?.reveal && (
-              <section className="live-panel reveal-panel">
-                <p className="eyebrow">TODD’S ROUND REPLAY</p>
-                <h2>{locationName(room.reveal.location)}</h2>
-                <p>{room.reveal.summary}</p>
-                <small>
-                  Fictional move summary, revealed after searches. Todd gets a
-                  distinct 20-point shadow card.
-                </small>
-                <StatsCard stats={room.reveal.stats} />
-              </section>
-            )}
-          </div>
-          {room && session && !isHost && (
-            <PlayerControls
-              room={room}
-              session={session}
-              disabled={!connected || busy}
-              send={send}
-              onPet={setPet}
-            />
+        {session && !room && (
+          <p className="glass" role="status">
+            Connecting…
+          </p>
+        )}
+        {room && session && !isHost && (
+          <PlayerControls
+            room={room}
+            session={session}
+            disabled={busy || !connected}
+            send={send}
+            onPet={setPet}
+          />
+        )}
+        {room &&
+          isHost &&
+          (panel === "join" || (room.phase === "lobby" && !panel)) && (
+            <QRJoin code={room.code} base={joinBase} />
           )}
-        </div>
-        {room && isHost && (
-          <>
-            <div className="host-toolbar">
-              <div>
-                <strong>
-                  {room.phase === "lobby"
-                    ? "The gates are open"
-                    : room.phase === "hiding"
-                      ? "Todd is finding a hiding place…"
-                      : room.phase === "resolving"
-                        ? "Pets are following their prompts…"
-                        : room.phase === "seeking"
-                          ? CONSTRAINTS[room.constraint].name
-                          : room.phase === "results"
-                            ? "The round is complete"
-                            : "The hunt is over"}
-                </strong>
-                <p>
-                  {room.phase === "lobby"
-                    ? "Start with 1–10 players. New players join only in the lobby."
-                    : room.phase === "seeking"
-                      ? CONSTRAINTS[room.constraint].help
-                      : "Each player gets one action per round."}
-                </p>
-              </div>
-              <div className="button-row">
-                {room.phase === "lobby" && (
-                  <button
-                    className="primary"
-                    disabled={busy || !connected || !room.players.length}
-                    onClick={() => command("host:start")}
-                  >
-                    Start hunt
-                  </button>
-                )}
-                {room.phase === "seeking" && (
-                  <button
-                    className="primary"
-                    disabled={busy || !connected}
-                    onClick={() =>
-                      room.submitted.length < room.players.length
-                        ? setConfirm("resolve")
-                        : command("host:resolve", {
-                            round: room.round,
-                            generation: room.generation,
-                          })
-                    }
-                  >
-                    Resolve {room.submitted.length} moves
-                  </button>
-                )}
-                {room.phase === "results" && (
-                  <button
-                    className="primary"
-                    disabled={busy || !connected}
-                    onClick={() => command("host:next")}
-                  >
-                    Next round →
-                  </button>
-                )}
-                <button
-                  disabled={
-                    busy ||
-                    !connected ||
-                    ["hiding", "resolving"].includes(room.phase)
-                  }
-                  onClick={() => setConfirm("restart")}
-                >
-                  New hunt
-                </button>
-              </div>
-            </div>
-            {confirm && (
-              <div className="confirm-panel" role="alert">
-                <p>
-                  {confirm === "resolve"
-                    ? `${room.players.length - room.submitted.length} players have not submitted. They will rest this round. Resolve now?`
-                    : "Start again? This clears the hunt and babies. Connected players keep their original pets."}
-                </p>
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() =>
-                    command(
-                      confirm === "resolve" ? "host:resolve" : "host:restart",
-                      confirm === "resolve"
-                        ? { round: room.round, generation: room.generation }
-                        : {},
-                    )
-                  }
-                >
-                  {confirm === "resolve" ? "Resolve anyway" : "Restart hunt"}
-                </button>
-                <button onClick={() => setConfirm(null)}>Cancel</button>
-              </div>
-            )}
-            <div className="host-extras">
-              <QRJoin code={room.code} base={joinBase} />
-              <Cheering room={room} disabled={busy || !connected} send={send} />
-            </div>
-          </>
+        {room && isHost && panel === "cheer" && (
+          <Cheering room={room} disabled={busy || !connected} send={send} />
         )}
-        {room && (
-          <>
-            <section className="live-panel roster-panel">
-              <div className="section-heading">
+        {room?.clue && (
+          <p className="glass clue" role="status">
+            {room.clue}
+          </p>
+        )}
+        {room?.reveal && (
+          <div className="glass reveal-panel">
+            <p>Todd was in {locationName(room.reveal.location)}.</p>
+            <details>
+              <summary>Reveal details</summary>
+              <p>{room.reveal.summary}</p>
+              <StatsCard stats={room.reveal.stats} />
+            </details>
+          </div>
+        )}
+        {room && panel === "players" && (
+          <div className="glass live-roster">
+            {room.pets.map((p) => (
+              <article key={p.id}>
+                <PetAvatar pet={p} />
                 <div>
-                  <p className="eyebrow">THE CASTLE’S LITTLE GUARDIANS</p>
-                  <h2>{room.players.length} seekers. One team.</h2>
+                  <strong>{p.name}</strong>
+                  <small>
+                    {p.usage} usage ·{" "}
+                    {p.readyRound > room.round
+                      ? "Ready next round"
+                      : locationName(p.location)}
+                  </small>
+                  <small>
+                    {room.players.find((m) => m.id === p.ownerId)?.online
+                      ? "Online"
+                      : "Offline"}{" "}
+                    · {room.submitted.includes(p.ownerId) ? "Ready" : "Waiting"}
+                  </small>
                 </div>
-                <span className="pill">20 points each</span>
-              </div>
-              <div className="live-roster">
-                {room.pets.map((p) => (
-                  <article key={p.id}>
-                    <PetAvatar pet={p} />
-                    <div>
-                      <strong>{p.name}</strong>
-                      <small>
-                        {p.usage} usage ·{" "}
-                        {p.readyRound > room.round
-                          ? "Ready next round"
-                          : locationName(p.location)}
-                      </small>
-                      <small>
-                        {room.players.find((m) => m.id === p.ownerId)?.online
-                          ? "Online"
-                          : "Offline"}{" "}
-                        ·{" "}
-                        {room.submitted.includes(p.ownerId)
-                          ? "Move locked"
-                          : "Waiting"}
-                      </small>
-                    </div>
-                    <details>
-                      <summary>Card</summary>
-                      <p>{p.flavor}</p>
-                      <StatsCard stats={p.stats} />
-                    </details>
-                  </article>
-                ))}
-              </div>
-            </section>
-            <section className="live-panel chronicle">
-              <p className="eyebrow">THE CASTLE CHRONICLE</p>
-              <h2>Little moves. Big consequences.</h2>
-              <ol>
-                {room.events.slice(0, 20).map((e) => (
-                  <li key={e.id}>
-                    <span>R{e.round}</span>
-                    <p>
-                      {e.text}
-                      {e.mode && (
-                        <small>
-                          {e.mode === "ai" ? "AI" : "Offline fallback"}
-                        </small>
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </>
+                <details>
+                  <summary>Card</summary>
+                  <StatsCard stats={p.stats} />
+                </details>
+              </article>
+            ))}
+          </div>
         )}
-        {!room && (
-          <section className="live-panel instructions">
-            <h2>A hide-and-seek game with a usage limit.</h2>
-            <div>
-              <p>
-                <strong>01 · Bring a guardian</strong>Describe your pet or
-                upload an image. Its balanced card decides which rooms it can
-                reach.
-              </p>
-              <p>
-                <strong>02 · Prompt your next move</strong>Seek with eight
-                words, emoji, or rhyme. Breed a new pet, or visit the vet to
-                restore usage.
-              </p>
-              <p>
-                <strong>03 · Catch the dot</strong>Todd has a distinct shadow
-                card. The audience changes one rule per round. Find it once to
-                win.
-              </p>
-            </div>
-            <small>
-              Bottle traps drain 25 usage. The hidden Tivo button fully resets
-              usage. Neither grants an extra action.
-            </small>
-          </section>
+        {room && panel === "log" && (
+          <ol className="glass event-list">
+            {room.events.slice(0, 30).map((e) => (
+              <li key={e.id}>
+                <small>
+                  R{e.round}
+                  {e.mode ? ` · ${e.mode === "ai" ? "AI" : "Offline"}` : ""}
+                </small>
+                <p>{e.text}</p>
+              </li>
+            ))}
+          </ol>
         )}
-        <footer className="live-footer">
-          <span>A little human + AI mischief.</span>
-          <span>
-            London OpenAI Hackathon · In-memory rooms reset when the server
-            stops.
-          </span>
-        </footer>
-      </main>
-    </div>
+        {panel === "rules" && (
+          <div className="glass rules">
+            <p>
+              Find Todd once within four rounds. Each player submits one action;
+              the host resolves them together.
+            </p>
+            <p>
+              Seek costs 10 usage. Traps cost another 25. The vet restores up to
+              50; Tivo restores 100. Breeding needs matching requests and 20
+              usage from each parent. The baby is ready next round.
+            </p>
+            <p>
+              Cards have 20 points. A stat of 5 unlocks its room. Speed decides
+              action order. The audience grants one advantage per round.
+            </p>
+            <p>
+              Drag to orbit. Scroll or pinch to zoom. Click a marker or use
+              Rooms to inspect a hiding spot.
+            </p>
+          </div>
+        )}
+      </aside>
+    </main>
   );
 }

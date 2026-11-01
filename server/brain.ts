@@ -8,7 +8,7 @@ import {
   type LivePet,
   type Stats,
 } from "../src/live/shared.ts";
-import type { Species } from "../src/game.ts";
+import type { Species } from "../src/pets.ts";
 
 export type CardInput = { name: string; description: string; image?: string };
 export type CardResult = {
@@ -111,14 +111,24 @@ export function fallbackCard(input: CardInput): CardResult {
     stats: balanceStats(weights),
     species: SPECIES[index],
     color: COLORS[index],
-    flavor: "A curious guardian, ready to cause a little helpful chaos.",
+    flavor:
+      "A castle seeker. Its strongest stat decides which specialist rooms it can reach.",
     mode: "fallback",
   };
 }
 
-export function createBrain(apiKey?: string, model = "gpt-4.1-mini"): Brain {
+export function createBrain(
+  apiKey?: string,
+  model = "gpt-4.1-mini",
+  transport?: typeof fetch,
+): Brain {
   const client = apiKey
-    ? new OpenAI({ apiKey, timeout: 15_000, maxRetries: 0 })
+    ? new OpenAI({
+        apiKey,
+        timeout: 15_000,
+        maxRetries: 0,
+        ...(transport ? { fetch: transport } : {}),
+      })
     : null;
   async function generate(
     name: string,

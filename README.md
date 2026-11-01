@@ -1,66 +1,76 @@
 # Promptkeep
 
-A local castle hide-and-seek game for the London OpenAI hackathon. Ten little guardians search for a slippery Dot, spend usage, discover traps, visit the vet, and breed new companions.
+A live castle hide-and-seek game for the London OpenAI hackathon. Up to ten phone players bring a pet, submit a move each round, and try to catch Todd, an AI-controlled dot. The host runs the hunt on a shared screen.
 
-## Run locally
+The interactive 3D grounds are inspired by Ardross Castle, the filming location used by The Traitors. The castle model is original procedural geometry, with a sandstone façade, square entrance tower, slate roofs, turrets, terrace stairs, gardens and woodland. It is a game map, not a reconstruction of the real floor plan.
 
-Use Node.js 22 or later and npm.
+## Start the game
+
+Use Node.js 22 or later.
 
 ```bash
 npm ci
-npm run dev -- --port 4173
+npm run dev
 ```
 
-Open **http://127.0.0.1:4173**. No API key is required. This is a shared-screen prototype: everyone plays in the same browser session. Refreshing the page clears the hunt and uploaded pets.
+Open **http://localhost:4173** on the host laptop. Click **Create room**, then let players scan the QR code or open the displayed join link on the same Wi-Fi. The host can start with 1–10 players. A description is enough to join; a resized PNG, JPEG or WebP image is optional.
+
+The QR code uses a detected LAN address. If the laptop has multiple networks, edit **Connection settings → Host address** on the host screen. Phones must use the laptop's address, not `localhost`. Venue Wi-Fi may isolate devices; a shared hotspot can help. The host microphone works on `localhost` or HTTPS. Players do not need microphone access.
+
+The game works without an API key, using clearly marked offline cards and moves. To enable model-backed play:
 
 ```bash
-npm test       # deterministic game-rule tests
-npm run build  # TypeScript checks and production bundle
-npm run preview -- --port 4173  # serve the production build
+cp .env.example .env.local
 ```
+
+Add `OPENAI_API_KEY` to `.env.local` locally, then restart `npm run dev`. Never paste a key into chat, commit it, or use a `VITE_` environment variable for it. `OPENAI_MODEL` defaults to `gpt-4.1-mini` and can be changed to a compatible model with image input and structured Responses output. The model receives the uploaded image/description for cards and the seeking prompt for moves. Audio is never uploaded. Model failures and malformed responses fall back to offline rules and are labelled.
 
 ## Play
 
-1. Pick a guardian from the roster. Optionally upload a pet image before the first action and choose one or two abilities.
-2. Choose a hiding spot on the map, then **Let's investigate**. On a phone-sized screen, the action panel also has a location picker.
-3. Every guardian gets one action per round: move and search, breed, or visit the vet.
-4. Follow the castle whisper. Find the Dot three times within three rounds to win. It flees after the first two sightings and at the end of each round.
-5. Start the next round when the party has finished. The confirmation explains any unused actions you will skip.
+- **Four rounds; one capture wins.** Ten human seekers stay human-controlled. Todd is a separate shadow, rendered as a dark dot with white eyes.
+- Each pet has **20 points** split across flight, smallness, speed, climb and swim, with each stat between 1 and 8. A score of 5 unlocks that stat's room. Higher smallness means better access to narrow gaps. Speed also decides resolution order.
+- Todd starts from a seeker's card, redistributing points until its unlocked abilities differ from every original seeker. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
+- Each **player** submits one action per round, even if they own a baby. Seeking costs 10 usage. Prompts rotate through eight words, emoji only, two rhyming lines, then eight words.
+- The host resolves submitted moves together. Missing players rest; the host confirms before skipping them. Refreshing a tab restores its session and the latest room state.
+- Bottles cost another 25 usage and disappear after triggering. The hidden Tivo reset restores usage to 100 once. The vet restores up to 50, even from zero. Healing never grants another action.
+- Breeding needs reciprocal requests from two players. Both parents spend 20 usage and their actions. The faster parent owns the baby; ties use a stable pet ID ordering. The baby can act next round. A room can grow to 20 pets.
+- Todd's current location and private game objects are excluded from client state. A brief fictional move summary and its previous location appear after resolution. Todd moves again before the next round opens.
 
-| Mechanic    | Rule                                                                                                                                      |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Access      | Pocket-sized pets fit small entrances, flyers reach the tower, night vision handles dark rooms, swimmers reach the moat.                  |
-| Search      | Costs 10 usage and one action; includes movement to any accessible room.                                                                  |
-| Bottle trap | Costs another 25 usage, never below zero; removed after triggering.                                                                       |
-| Tivo reset  | Hidden, single-use button restores its finder to 100 usage after the search cost.                                                         |
-| Vet         | Restores 50 usage, capped at 100, for one action. Available at zero usage.                                                                |
-| Breeding    | Both parents spend 20 usage and their actions. Baby inherits up to two abilities, starts at 100 usage, and acts from the following round. |
-| Rounds      | Three rounds. Usage carries over; actions refresh. The party can grow to 16 pets.                                                         |
-| Dot         | Random movement controlled by a seeded game engine. Three discoveries capture it. Old search marks clear whenever it moves.               |
+## Audience
 
-A Dot can flee into a room containing a trap or reset. Searching resolves that room's effect and still counts the sighting. A pet cannot act again simply because the reset restores its usage.
+The host shows one card for the seekers and one for Todd. **Measure cheering** requests microphone access and measures each side for three seconds, with a short gap between sides. The larger average wins. Scores within 0.015 tie and grant no advantage. Permission failures leave the labelled **Manual fallback** available.
 
-## What's implemented
+Only one result is accepted per round. Seekers can hear a regional squeak or rule out two rooms. Todd can relocate once more or temporarily gain attic access. Results carry the round and hunt identity so a late result cannot affect a later round. The microphone stops after measuring, cancellation, navigation, or a phase change.
 
-- Original SVG castle and ten illustrated starter guardians, with responsive controls.
-- Deterministic rules separated from the UI and covered by 14 tests.
-- Usage, room access, breeding, healing, hidden consumables, round changes, victory and defeat.
-- Local PNG, JPEG, WebP, and GIF uploads up to 2 MB. Files remain in the current browser session.
-- Keyboard-operable controls, arrow-key action tabs, modal focus handling, and reduced-motion styling.
+## Rendering and controls
 
-## Scope of this first PR
+Drag the castle to orbit; scroll or pinch to zoom. Click a room marker or open **Rooms** in the left overlay for keyboard-accessible room buttons. **Reset view** restores the camera. **Simple view** stops 3D rendering and keeps all controls available. WebGL failures use the same fallback. The castle fills the viewport. All controls live in transparent glass overlays at the left and right edges. Players, log and rules open on demand.
 
-This build has **no model calls, phone room joining, microphone voting, generated sprites, or production hosting**. The Dot is controlled by the game engine, and uploaded pets use player-selected abilities. Usage is fictional game health, not real OpenAI account credit. Google Fonts are optional visual enhancements; system font fallbacks are present.
+When any pet enters an interior location, the upper castle lifts and fades to reveal furnished rooms. It closes when every pet leaves. **Look inside** previews the cutaway without moving a pet. Pet and roof animation respect reduced-motion preferences.
 
-The approved live-game expansion is recorded in [docs/LIVE_GAME.md](docs/LIVE_GAME.md). It follows this first reviewable prototype rather than being represented as already implemented.
+The 2D prototype and its engine have been removed. The 3D game is the only experience.
+
+## Checks and production build
+
+```bash
+npm test          # 13 live engine, transport, and Socket.IO integration tests
+npm run typecheck
+npm run build
+npm start         # serves dist and the room server at http://localhost:4174
+```
+
+`npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. This project has not been deployed.
+
+Rooms, uploaded images, and reconnect identities are in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. This is a LAN hackathon build, without accounts or durable persistence.
+
+Verified and pending checks are in [PLAN.md](PLAN.md), with details in [docs/VERIFICATION.md](docs/VERIFICATION.md). Live model calls still need a working key. Physical-phone networking and microphone hardware require venue/device testing. Usage is fictional game health, not OpenAI account credit.
 
 ## Code map
 
-- `src/game.ts`: game types, room requirements, seeded randomness, and pure action handling.
-- `src/game.test.ts`: legal and illegal moves, healing and trap limits, breeding, uploads, and endings.
-- `src/App.tsx`: local party state, action controls, onboarding, upload dialog, and chronicle.
-- `src/CastleMap.tsx`: illustrated interactive arena.
-- `src/PetAvatar.tsx`: original starter pet illustrations and uploaded-image rendering.
-- `src/styles.css`: desktop and mobile layouts, animation, and reduced-motion support.
+- `server/rooms.ts`: authoritative room state, hidden objects, turns, abilities and outcomes.
+- `server/brain.ts`: structured OpenAI cards, moves and hider choices, with offline fallbacks.
+- `server/index.ts`: HTTP routes, Socket.IO sessions, reconnects and static hosting.
+- `src/live/`: host/player screens, 3D castle, cheering, shared contracts and validation.
+- `src/pets.ts`, `src/PetAvatar.tsx`: shared pet data and original avatar artwork.
 
-Built with React, TypeScript, Vite, and Lucide icons. No app secrets belong in browser code or Git; `.env*` files are ignored.
+Development milestones are pushed directly to `main`, as requested. The GitHub Actions template is in `docs/github-actions-check.yml`; move it to `.github/workflows/check.yml` using a login with workflow permission to enable CI. The current login could push code but GitHub rejected workflow creation, so CI is not installed.

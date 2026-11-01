@@ -26,6 +26,8 @@ export default function Cheering({ room, disabled, send }: Props) {
         seekers: side === "todd" ? 0 : 1,
         todd: side === "seekers" ? 0 : 1,
         method: "manual",
+        round: room.round,
+        generation: room.generation,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -102,7 +104,13 @@ export default function Cheering({ room, disabled, send }: Props) {
       });
       const todd = await sample("RIGHT SIDE: cheer for Todd!");
       if (!controller.signal.aborted)
-        await send("host:cheer", { seekers, todd, method: "microphone" });
+        await send("host:cheer", {
+          seekers,
+          todd,
+          method: "microphone",
+          round: room.round,
+          generation: room.generation,
+        });
     } catch (e) {
       if (!controller.signal.aborted)
         setError(
@@ -124,10 +132,10 @@ export default function Cheering({ room, disabled, send }: Props) {
     <section className="live-panel cheer-panel">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">THE ROOM HAS A SAY</p>
-          <h2>Make some noise.</h2>
+          <p className="eyebrow">AUDIENCE</p>
+          <h2>Choose this round’s advantage</h2>
         </div>
-        <span className="pill">One change / round</span>
+        <span className="pill">1 per round</span>
       </div>
       <div className="advantage-cards">
         {room.cards.map((id) => {

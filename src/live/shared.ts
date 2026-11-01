@@ -1,4 +1,4 @@
-import { LOCATIONS, type Pet } from "../game";
+import { LOCATIONS, type Pet } from "../pets";
 
 export const STAT_KEYS = [
   "flight",
@@ -23,16 +23,7 @@ export const GATES: Record<string, { stat: Stat; min: number } | undefined> = {
   vault: { stat: "speed", min: 5 },
   moat: { stat: "swim", min: 5 },
 };
-export const LIVE_LOCATIONS = LOCATIONS.map((l) => ({
-  ...l,
-  requires: undefined,
-  subtitle:
-    l.id === "archives"
-      ? "Climb into the library rafters."
-      : l.id === "vault"
-        ? "Dash through the closing vault gate."
-        : l.subtitle,
-}));
+export const LIVE_LOCATIONS = LOCATIONS;
 export type LivePet = Pet & {
   ownerId: string;
   stats: Stats;
@@ -58,17 +49,17 @@ export const CONSTRAINTS: Record<
   { name: string; help: string; example: string }
 > = {
   eight: {
-    name: "Eight words. One bright idea.",
+    name: "Eight-word prompts",
     help: "Write a seeking prompt using at most eight words.",
     example: "Tiny paws, check the attic for Todd.",
   },
   emoji: {
-    name: "No words. Just vibes.",
+    name: "Emoji-only prompts",
     help: "Send only emoji, spaces, and punctuation.",
     example: "🪽 🏰 🔍 👀",
   },
   rhyme: {
-    name: "Seek in a couplet.",
+    name: "Two lines that rhyme",
     help: "Write two short lines that rhyme. AI checks the rhyme; offline mode checks the last two letters.",
     example: "I take my flight,\nTo the tower tonight.",
   },

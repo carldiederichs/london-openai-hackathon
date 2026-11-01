@@ -5,8 +5,12 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     proxy: {
-      "/api": "http://127.0.0.1:4174",
-      "/socket.io": { target: "http://127.0.0.1:4174", ws: true },
+      "/api": { target: "http://127.0.0.1:4174", changeOrigin: false },
+      "/socket.io": {
+        target: "http://127.0.0.1:4174",
+        ws: true,
+        changeOrigin: false,
+      },
     },
   },
 });

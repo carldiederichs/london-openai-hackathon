@@ -69,7 +69,14 @@ export function toddStats(pets: LivePet[]): Stats {
         }
   if (!candidates.length)
     throw new Error("No distinct Todd card is available.");
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  // Shadow one seeker, redistributing the fewest points needed to unlock a
+  // different set of abilities from every member of the party.
+  const source = pets[Math.floor(Math.random() * pets.length)].stats;
+  const distance = (s: Stats) =>
+    STAT_KEYS.reduce((sum, k) => sum + Math.abs(s[k] - source[k]), 0);
+  const nearest = Math.min(...candidates.map(distance));
+  const shadows = candidates.filter((s) => distance(s) === nearest);
+  return shadows[Math.floor(Math.random() * shadows.length)];
 }
 export class Rooms {
   readonly rooms = new Map<string, Room>();
@@ -201,7 +208,6 @@ export class Rooms {
         name: input.name.trim(),
         species: card.species,
         color: card.color,
-        traits: [],
         stats: balanceStats(card.stats),
         flavor: card.flavor,
         origin: card.mode,
@@ -248,9 +254,13 @@ export class Rooms {
         ? { smallness: Math.max(5, room.hiderStats.smallness) }
         : {}),
     };
-    let allowed = LIVE_LOCATIONS.filter((l) => accessible({ stats }, l.id)).map(
-      (l) => l.id,
-    );
+    let allowed = LIVE_LOCATIONS.filter(
+      (l) =>
+        accessible({ stats }, l.id) &&
+        room.pets.some(
+          (p) => p.readyRound <= room.round && accessible(p, l.id),
+        ),
+    ).map((l) => l.id);
     if (allowed.length > 1) allowed = allowed.filter((id) => id !== room.dot);
     const result = await this.brain.hide(
       stats,
@@ -361,7 +371,15 @@ export class Rooms {
       );
     if (!raw || typeof raw !== "object")
       throw new Error("Record both cheering scores.");
-    const input = raw as { seekers: number; todd: number; method: string };
+    const input = raw as {
+      seekers: number;
+      todd: number;
+      method: string;
+      round: number;
+      generation: number;
+    };
+    if (input.round !== room.round || input.generation !== room.generation)
+      throw new Error("That audience result belongs to a closed round.");
     if (
       ![input.seekers, input.todd].every(
         (n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1,
@@ -379,7 +397,8 @@ export class Rooms {
     const advantage =
       side === "tie" ? null : side === "seekers" ? cards[0] : cards[1];
     room.cheer = {
-      ...input,
+      seekers: input.seekers,
+      todd: input.todd,
       method: input.method as CheerResult["method"],
       side,
       advantage,
@@ -576,7 +595,10 @@ export class Rooms {
         "todd",
       );
     } catch {
-      Object.assign(room, snapshot);
+      Object.assign(room, snapshot, {
+        players: room.players,
+        touched: room.touched,
+      });
       throw new Error(
         "Round resolution could not finish. Your submissions are retained; try again.",
       );
@@ -607,7 +629,10 @@ export class Rooms {
         `Round ${room.round}. Todd has moved. Every player has one fresh action.`,
       );
     } catch {
-      Object.assign(room, snapshot);
+      Object.assign(room, snapshot, {
+        players: room.players,
+        touched: room.touched,
+      });
       throw new Error("Todd could not move. Try the next round again.");
     } finally {
       this.changed(room.code);

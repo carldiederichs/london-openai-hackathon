@@ -32,11 +32,15 @@ export function createGameServer(
   const lan = Object.values(networkInterfaces())
     .flat()
     .find((a) => a?.family === "IPv4" && !a.internal)?.address;
-  app.get("/api/config", (_req, res) =>
+  app.get("/api/config", (req, res) =>
     res.json({
       configured: brain.configured,
       model: brain.model,
-      joinBase: process.env.PUBLIC_URL || (lan ? `http://${lan}:4173` : ""),
+      joinBase:
+        process.env.PUBLIC_URL ||
+        (lan
+          ? `http://${lan}:${req.get("host")?.match(/:(\d+)$/)?.[1] || process.env.PORT || "4174"}`
+          : ""),
     }),
   );
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -51,12 +55,10 @@ export function createGameServer(
       count = requests.get(key) || { time: now, count: 0 };
     requests.set(key, count);
     if (++count.count > 40) {
-      res
-        .status(429)
-        .json({
-          ok: false,
-          error: "Too many requests. Wait a minute and try again.",
-        });
+      res.status(429).json({
+        ok: false,
+        error: "Too many requests. Wait a minute and try again.",
+      });
       return;
     }
     next();
@@ -153,17 +155,15 @@ export function createGameServer(
       res: express.Response,
       _next: express.NextFunction,
     ) => {
-      res
-        .status(400)
-        .json({
-          ok: false,
-          error:
-            error.type === "entity.too.large"
-              ? "That image is too large. Use a smaller image."
-              : error instanceof SyntaxError
-                ? "Invalid request."
-                : error.message || "Request failed.",
-        });
+      res.status(400).json({
+        ok: false,
+        error:
+          error.type === "entity.too.large"
+            ? "That image is too large. Use a smaller image."
+            : error instanceof SyntaxError
+              ? "Invalid request."
+              : error.message || "Request failed.",
+      });
     },
   );
   return {
