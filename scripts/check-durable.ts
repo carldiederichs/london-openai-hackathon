@@ -91,7 +91,17 @@ try {
     host = await connect(hostSession),
     sessions: Session[] = [];
   for (let i = 0; i < count; i += 20) {
-    sessions.push(...await Promise.all(Array.from({length: Math.min(20,count-i)},(_,j)=>post("/api/rooms/"+hostSession.roomCode+"/join", {name:"Load "+(i+j),companionId:"dewey",description:"Codex companion"}))));
+    sessions.push(
+      ...(await Promise.all(
+        Array.from({ length: Math.min(20, count - i) }, (_, j) =>
+          post("/api/rooms/" + hostSession.roomCode + "/join", {
+            name: "Load " + (i + j),
+            companionId: "dewey",
+            description: "Codex companion",
+          }),
+        ),
+      )),
+    );
   }
   const players = [];
   for (let i = 0; i < sessions.length; i += 20)
@@ -101,6 +111,7 @@ try {
   const joined = Date.now() - started;
   await sleep(500);
   assert.equal(host.state?.playerCount, count);
+  await action(host, "host:start");
   const before = JSON.stringify(players[0].state?.pets[0].position);
   let seq = 0;
   const input = setInterval(() => {
@@ -123,10 +134,9 @@ try {
   assert.notEqual(
     JSON.stringify(players[0].state?.pets[0].position),
     before,
-    "lobby movement",
+    "active movement",
   );
-  assert.equal(players[0].state?.pets[0].usage, 100);
-  await action(host, "host:start");
+  assert.ok(players[0].state!.pets[0].usage < 100);
   await action(host, "host:pause", { paused: true });
   await sleep(600);
   assert.ok(host.state?.pausedAt);
@@ -150,7 +160,7 @@ try {
       joinMilliseconds: joined,
       minimumMotionFrames: min,
       unexpectedDisconnects: unexpected,
-      lobbyMovement: true,
+      activeMovement: true,
       pauseResume: true,
       reconnect: true,
     }),

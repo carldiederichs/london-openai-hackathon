@@ -48,7 +48,7 @@ export default function WorldController({
   }
   const enabled =
     connected &&
-    ["lobby", "seeking"].includes(room.phase) &&
+    room.phase === "seeking" &&
     room.pausedAt === null &&
     !!pet &&
     pet.usage > 0 &&
@@ -58,7 +58,7 @@ export default function WorldController({
       p = state.pet;
     const active =
       state.connected &&
-      ["lobby", "seeking"].includes(state.room.phase) &&
+      state.room.phase === "seeking" &&
       state.room.pausedAt === null &&
       p &&
       p.usage > 0 &&
@@ -159,6 +159,20 @@ export default function WorldController({
           <small>{location}</small>
         </div>
       </div>
+      {pet.bannedAt ? (
+        <div className="ban-notice" role="alert">
+          <strong>Banned for distillation</strong>
+          <p>Your pet is dead. Rest in the graveyard until the next game.</p>
+        </div>
+      ) : (
+        room.yourRole && (
+          <p className={`role-notice ${room.yourRole}`}>
+            {room.yourRole === "traitor"
+              ? "You are a traitor. Bump into pets to ban them."
+              : "Find the Dot. Watch out for traitors."}
+          </p>
+        )
+      )}
       <progress aria-label="Pet usage" value={pet.usage} max={100} />
       <small>
         {Math.ceil(pet.usage)} usage · {room.playerCount}{" "}
@@ -250,18 +264,20 @@ export default function WorldController({
         {!connected
           ? "Reconnecting…"
           : room.phase === "lobby"
-            ? "Explore with the arrows. The hunt starts at the countdown."
+            ? "Ready. Controls unlock when the countdown starts."
             : room.phase === "over"
               ? room.winnerPetIds.includes(pet.id)
                 ? "You won!"
                 : "Game over."
               : room.pausedAt !== null
                 ? "Game stopped by the host."
-                : pet.usage <= 0
-                  ? "Out of usage. Play again next game."
-                  : pet.mating?.finishesAt
-                    ? "Under the duvet… merging with your partner."
-                    : "Hold arrows or WASD. Follow the paths; entering a room searches it."}
+                : pet.bannedAt
+                  ? "Your pet is dead — banned for distillation."
+                  : pet.usage <= 0
+                    ? "Out of usage. Play again next game."
+                    : pet.mating?.finishesAt
+                      ? "Under the duvet… merging with your partner."
+                      : "Hold arrows or WASD. Follow the paths; entering a room searches it."}
       </small>
     </section>
   );

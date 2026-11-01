@@ -73,6 +73,8 @@ export type Room = {
   endsAt: number | null;
   pausedAt: number | null;
   winnerPetIds: string[];
+  traitorPlayerIds: string[];
+  lastBan: Map<string, number>;
 };
 const pathPoints = navigationPoints();
 const token = () => randomBytes(24).toString("base64url");
@@ -212,7 +214,7 @@ export class Rooms {
       verified.role !== "player" ||
       room.mode !== "realtime" ||
       room.pausedAt !== null ||
-      !["lobby", "seeking"].includes(room.phase)
+      room.phase !== "seeking"
     )
       throw new Error("Movement is closed.");
     const input = data as {
@@ -288,7 +290,7 @@ export class Rooms {
       elapsed = Math.max(0, (now - room.lastTick) / 1000),
       dt = Math.min(0.15, elapsed);
     room.lastTick = now;
-    if (!["lobby", "seeking"].includes(room.phase)) return;
+    if (room.phase !== "seeking") return;
     const playing = room.phase === "seeking";
     const occupied = () => matingOccupants(room.pets).length;
     for (const pet of room.pets) {
@@ -442,6 +444,88 @@ export class Rooms {
         }
       }
     }
+    this.resolveTraitorCollisions(room);
+  }
+  roleFor(code: string, playerId: string): "traitor" | "seeker" | undefined {
+    const room = this.get(code);
+    if (room.phase === "lobby" || room.phase === "hiding") return undefined;
+    const pet = room.pets.find((p) => ownsPet(p, playerId));
+    return pet &&
+      petOwners(pet).some((id) => room.traitorPlayerIds.includes(id))
+      ? "traitor"
+      : "seeker";
+  }
+  private resolveTraitorCollisions(room: Room) {
+    if (room.phase !== "seeking" || room.pausedAt !== null) return;
+    const now = this.now(),
+      camp = roomPoint("camp");
+    const traitor = (pet: LivePet) =>
+      petOwners(pet).some((id) => room.traitorPlayerIds.includes(id));
+    const eligible = (pet: LivePet) =>
+      pet.usage > 0 &&
+      !pet.bannedAt &&
+      !matingBusy(pet) &&
+      !!pet.position &&
+      Math.hypot(pet.position[0] - camp[0], pet.position[2] - camp[2]) > 4;
+    const cells = new Map<string, LivePet[]>();
+    for (const pet of room.pets)
+      if (eligible(pet) && !traitor(pet)) {
+        const key = `${Math.floor(pet.position![0] / 1.5)},${Math.floor(pet.position![2] / 1.5)}`;
+        const list = cells.get(key) || [];
+        list.push(pet);
+        cells.set(key, list);
+      }
+    for (const attacker of room.pets) {
+      if (
+        !eligible(attacker) ||
+        !traitor(attacker) ||
+        !attacker.moving ||
+        now - (room.lastBan.get(attacker.id) ?? -Infinity) < 2000
+      )
+        continue;
+      const [x, y, z] = attacker.position!,
+        cx = Math.floor(x / 1.5),
+        cz = Math.floor(z / 1.5);
+      let victim: LivePet | undefined;
+      for (let dx = -1; dx <= 1 && !victim; dx++)
+        for (let dz = -1; dz <= 1 && !victim; dz++)
+          victim = cells
+            .get(`${cx + dx},${cz + dz}`)
+            ?.find(
+              (p) =>
+                p.usage > 0 &&
+                Math.hypot(
+                  p.position![0] - x,
+                  p.position![1] - y,
+                  p.position![2] - z,
+                ) < 1.2,
+            );
+      if (!victim) continue;
+      victim.usage = 0;
+      victim.bannedAt = now;
+      victim.location = "graveyard";
+      victim.moving = false;
+      victim.mating = undefined;
+      victim.effect = undefined;
+      victim.tipsy = false;
+      const grave = roomPoint("graveyard"),
+        index = room.pets.filter((p) => p.bannedAt).length - 1;
+      victim.position = [
+        grave[0] + ((index % 6) - 2.5) * 0.65,
+        grave[1],
+        grave[2] + Math.floor(index / 6) * 0.65,
+      ];
+      room.controllers.delete(victim.id);
+      room.destinations.delete(victim.id);
+      room.cursors.set(victim.id, { node: "graveyard", progress: 0 });
+      room.lastBan.set(attacker.id, now);
+      this.event(
+        room,
+        `${victim.name} was banned for distillation. Resting in the pet graveyard.`,
+        "trap",
+      );
+      this.changed(room.code);
+    }
   }
   private event(
     room: Room,
@@ -528,6 +612,8 @@ export class Rooms {
       endsAt: null,
       pausedAt: null,
       winnerPetIds: [],
+      traitorPlayerIds: [],
+      lastBan: new Map(),
       fallbackCount: 0,
       images: new Map(),
       joining: 0,
@@ -655,6 +741,12 @@ export class Rooms {
         room.originalPets.push(structuredClone({ ...pet, usage: 100 }));
       }
       room.pets.push(pet);
+      if (
+        room.mode === "realtime" &&
+        room.phase === "seeking" &&
+        Math.floor(room.players.length / 9) > room.traitorPlayerIds.length
+      )
+        room.traitorPlayerIds.push(id);
       this.event(
         room,
         `${pet.name} joined with a balanced 20-point card.`,
@@ -742,6 +834,15 @@ export class Rooms {
         room.destinations.clear();
         room.cursors.clear();
         room.visits.clear();
+        room.lastBan.clear();
+        const shuffled = [...room.players];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        room.traitorPlayerIds = shuffled
+          .slice(0, Math.floor(shuffled.length / 9))
+          .map((p) => p.id);
         for (const pet of room.pets) {
           pet.position = roomPoint("camp");
           pet.moving = false;
@@ -780,6 +881,7 @@ export class Rooms {
     } else {
       const duration = now - room.pausedAt!;
       room.endsAt! += duration;
+      room.lastBan.forEach((at, id) => room.lastBan.set(id, at + duration));
       room.pets = shiftPetClocks(room.pets, duration);
       room.pausedAt = null;
       room.lastTick = now;
@@ -1124,6 +1226,8 @@ export class Rooms {
     room.endsAt = null;
     room.pausedAt = null;
     room.winnerPetIds = [];
+    room.traitorPlayerIds = [];
+    room.lastBan.clear();
     room.traps = [];
     room.reset = null;
     room.events = [];
@@ -1131,6 +1235,7 @@ export class Rooms {
       (p) => ({
         ...p,
         usage: 100,
+        bannedAt: undefined,
         tipsy: false,
         effect: undefined,
         acted: false,

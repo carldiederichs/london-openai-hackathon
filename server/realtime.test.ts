@@ -217,32 +217,85 @@ test("care routing recovers from manual steering with irregular tick durations",
   assert.equal(room.pets.length, 1);
   assert.equal(room.pets[0].location, "nursery");
 });
-test("players can explore before the countdown without spending usage or finding the Dot", async () => {
+test("phone movement stays locked until the host starts the shared deadline", async () => {
   let now = 1000;
   const rooms = new Rooms(
-    createBrain(undefined),
-    () => {},
-    () => now,
-  );
-  const host = rooms.create("realtime");
+      createBrain(undefined),
+      () => {},
+      () => now,
+    ),
+    host = rooms.create("realtime");
   const player = await rooms.join(host.roomCode, {
-    name: "Explorer",
+    name: "Ready",
     description: "owl",
     companionId: "hoots",
   });
   const room = rooms.get(host.roomCode),
-    pet = room.pets[0],
-    original = [...pet.position!];
-  for (let i = 0; i < 10; i++) {
-    rooms.steer(player, { dx: 1, dz: 0, seq: i, generation: 1 });
-    now += 50;
-    rooms.tick();
-  }
-  assert.notDeepEqual(pet.position, original);
-  assert.equal(pet.usage, 100);
+    original = structuredClone(room.pets);
+  assert.throws(
+    () => rooms.steer(player, { dx: 1, dz: 0, seq: 1, generation: 1 }),
+    /closed/,
+  );
+  now += 2000;
+  rooms.tick();
+  assert.deepEqual(room.pets, original);
   assert.equal(room.endsAt, null);
-  assert.equal(room.outcome, null);
   await rooms.start(host);
-  assert.deepEqual(room.pets[0].position, roomPoint("camp"));
-  assert.equal(room.pets[0].location, "camp");
+  assert.equal(rooms.public(host.roomCode).endsAt, now + 60000);
+  rooms.steer(player, { dx: 1, dz: 0, seq: 2, generation: 1 });
+  now += 50;
+  rooms.tick();
+  assert.notDeepEqual(room.pets[0].position, original[0].position);
+});
+test("one in nine players gets a secret traitor role and restart clears roles", async () => {
+  const { rooms, host, players, room } = await setup(18);
+  assert.equal(room.traitorPlayerIds.length, 2);
+  assert.equal(
+    players.filter(
+      (p) => rooms.roleFor(host.roomCode, p.playerId!) === "traitor",
+    ).length,
+    2,
+  );
+  assert.equal(rooms.public(host.roomCode).yourRole, undefined);
+  assert.ok(!("traitorPlayerIds" in rooms.public(host.roomCode)));
+  rooms.restart(host);
+  assert.deepEqual(room.traitorPlayerIds, []);
+  assert.equal(rooms.roleFor(host.roomCode, players[0].playerId!), undefined);
+});
+test("traitor collisions ban one seeker, move it to the graveyard and block further actions", async () => {
+  const { rooms, host, players, room, advance } = await setup(9);
+  room.traitorPlayerIds = [players[0].playerId!];
+  room.dot = "library";
+  const attacker = room.pets[0],
+    victim = room.pets[1];
+  for (const pet of [attacker, victim]) {
+    pet.location = "courtyard";
+    pet.position = roomPoint("courtyard");
+    room.cursors.set(pet.id, { node: "courtyard", progress: 0 });
+  }
+  rooms.steer(players[0], { dx: 0, dz: 1, seq: 1, generation: 1 });
+  advance(50);
+  assert.equal(victim.usage, 0);
+  assert.ok(victim.bannedAt);
+  assert.equal(victim.location, "graveyard");
+  assert.equal(room.destinations.has(victim.id), false);
+  assert.throws(
+    () => rooms.destination(players[1], { location: "vet", generation: 1 }),
+    /cannot move/,
+  );
+  assert.ok(
+    room.events.some((e) => e.text.includes("banned for distillation")),
+  );
+  rooms.restart(host);
+  assert.ok(room.pets.every((p) => !p.bannedAt && p.usage === 100));
+});
+test("base camp and stopped games are safe from traitor collisions", async () => {
+  const { rooms, host, players, room, advance } = await setup(9);
+  room.traitorPlayerIds = [players[0].playerId!];
+  rooms.steer(players[0], { dx: 1, dz: 0, seq: 1, generation: 1 });
+  advance(50);
+  assert.ok(room.pets.every((p) => !p.bannedAt));
+  rooms.pause(host, true);
+  advance(3000);
+  assert.ok(room.pets.every((p) => !p.bannedAt));
 });

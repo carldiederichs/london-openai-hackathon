@@ -155,6 +155,7 @@ export type LiveEvent = {
   mode?: "ai" | "fallback";
 };
 export type PublicRoom = {
+  yourRole?: "traitor" | "seeker";
   mode: "turns" | "realtime";
   playerCount: number;
   code: string;
@@ -278,6 +279,9 @@ export const ownsPet = (pet: LivePet, playerId?: string): boolean =>
 export type MotionFrame = {
   generation: number;
   serverNow: number;
-  pets: Pick<LivePet, "id" | "position" | "moving" | "location" | "usage">[];
+  pets: Pick<
+    LivePet,
+    "id" | "position" | "moving" | "location" | "usage" | "bannedAt"
+  >[];
 };
 export const MAX_PLAYERS = 300;

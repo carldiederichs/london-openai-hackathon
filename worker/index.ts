@@ -131,6 +131,8 @@ export class GameRoom extends DurableObject<Env> {
           value?.__feralMap ? new Map(value.__feralMap) : value,
         ) as Room;
         this.code = room.code;
+        room.traitorPlayerIds ??= [];
+        room.lastBan ??= new Map();
         room.controllers.clear();
         room.lastTick = Date.now();
         room.players.forEach((p) => {
@@ -164,6 +166,7 @@ export class GameRoom extends DurableObject<Env> {
       ? state
       : {
           ...state,
+          yourRole: this.rooms.roleFor(this.code, session.playerId!),
           pets: state.pets.filter((p) => ownsPet(p, session.playerId)),
           players: state.players.filter((p) => p.id === session.playerId),
           events: state.events.slice(0, 5),
@@ -198,6 +201,7 @@ export class GameRoom extends DurableObject<Env> {
         const all = room.pets.map((p) => ({
           id: p.id,
           position: p.position,
+          bannedAt: p.bannedAt,
           moving: p.moving,
           location: p.location,
           usage: Math.round(p.usage * 10) / 10,

@@ -208,6 +208,25 @@ Current verification: 45 tests and production build pass. Local 301-WebSocket lo
 - [x] Replace cramped phone overlays with a single-column flow, system font, aligned usage bar and visible Join game button. Browser verified submission and live map movement at 390px. Lobby exploration is active without usage/traps/wins; the host countdown resets pets to camp.
 - [x] Implement Cloudflare Durable Objects using the existing game rules, durable snapshots, authenticated native WebSockets and separate venue join/create limits. Local Worker test: 301 connections, minimum 47 movement frames, zero disconnects, lobby steering, pause/resume and reconnect.
 - [x] Deploy Worker with server-side OpenAI secret. Public endpoint native-WebSocket test: 301 connections, minimum 47 movement frames, zero disconnects, movement/pause/resume/reconnect verified.
-- [ ] **In progress** — publish the Sites frontend and verify phone/host play from its final URL.
-- [ ] Publish on Sites, verify the returned deployment URL and phone/host shared state, then document hosted setup and limits. Never place API credentials in frontend assets or Git.
-- [ ] Reconcile the 90-second demo instructions with the final phone controls and deployed URL.
+- [x] Publish the Sites frontend and verify phone/host play from its final URL; see the publication checkpoint below.
+- [x] Sites publication, returned URL, phone/host state and hosted setup verified. API credentials remain outside frontend assets and Git.
+- [x] Reconcile the 90-second demo instructions with the final phone controls and deployed URL.
+
+## Latest gameplay corrections and final publication
+
+The latest instruction supersedes lobby exploration: controls must remain locked until the host starts the synchronized timer.
+
+- [x] Disable arrow text selection and declare iOS callout suppression; hosted 390px layout and computed user-select verified. Physical Safari remains an external check.
+- [x] Lock phone movement until Start; hosted matching countdown and Stop/Resume verified.
+- [x] Implement private traitors, collision bans, graveyard relocation, disabled actions and the death message. Automated rules and a public nine-player collision check passed; see exact browser coverage in docs/VERIFICATION.md.
+- [x] Tests, production build, Worker checks and the updated public 301-connection test passed.
+- [ ] Publish the latest backend and Sites frontend, verify the final public URL and phone/host play, then push final source/docs to main and verify the remote hash.
+- [ ] Update README, 90-second demo and verification record for traitors and the published address; save a local checkpoint with readback.
+
+Milestone `02e4a49` is already pushed and matches GitHub main. It predates the traitor correction. Public Cloudflare backend and its AI secret are working; the latest Sites frontend is not yet published. Sites source upload is still pending, so publication is not marked complete.
+
+## Publication checkpoint | 1 November 2026
+
+Live: https://feral-hackathon.sugarybrine.chatgpt.site. Sites version 1 and the latest Durable Object backend are deployed. The detailed evidence is in `docs/VERIFICATION.md` under Published Feral verification. The development chat stopped before final publication; the publishing chat completed it and checked incoming state before handoff. Owen's latest PR branch targets a different Site and separate game implementation, so its hosting identity was not substituted for this selected Feral Site. Compatible contributions already in Feral remain intact.
+
+Source push and sanitized local continuity checkpoint are the final administrative steps. Notion remains paused for this project. Physical-device/venue-network and user-owned microphone checks remain external; GitHub CI installation remains blocked by workflow permission.

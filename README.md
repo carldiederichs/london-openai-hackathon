@@ -29,9 +29,10 @@ The QR code uses a detected LAN address. If the laptop has multiple networks, ed
 - **Keep moving carefully:** usage is fictional game health, not OpenAI account credit. It drains over time, with extra drain while moving. At zero, a pet cannot move again until the next game.
 - **Use your abilities:** every card has 20 points across flight, smallness, speed, climb and swim. Room gates enforce those abilities on the server. Higher smallness helps with narrow entrances; some rooms also require night vision or a specialist score.
 - **Recover:** the vet restores up to 50 usage and cures tipsiness. Tibo's red reset button beneath his tavern portrait restores usage to 100 for its first visitor each hunt. Hidden bottles cost 25 usage and make a pet tipsy and slower until healed.
+- **Traitors:** one player per full group of nine is secretly assigned a traitor role (9–17 players: one; 18–26: two). A moving traitor who bumps into a seeker bans it for distillation. The pet immediately appears in the graveyard, its controls lock, and its phone displays a death message. Base camp is safe; bans have a two-second cooldown. A merged pet inherits a traitor role if either owner is a traitor. Roles reset each game.
 - **Merge:** the mating room admits only two pets from different owners, each with at least 20 usage. Once both arrive, a floating duvet and rising hearts play for eight seconds. The parents become one new, balanced pet controlled by both players. Its usage is their combined remaining usage minus 40, capped at 100. A lone waiting pet can leave.
 
-Players can explore immediately after joining, before the countdown, without losing usage or triggering rooms. Start returns everyone to base camp for the timed hunt. The phone controller shows your pet, usage and position on a small map. **Go to vet** and **Mating room** follow the estate's paths automatically; steering manually takes over. The server enforces movement, room access, occupancy and outcomes. Refreshing a tab reconnects to the same session and deadline. Restarting a hunt restores the original pets.
+Phone controls unlock only when the host starts the countdown. The host and phones display the same server-owned deadline. The phone controller shows your pet, usage and position on a small map. **Go to vet** and **Mating room** follow the estate's paths automatically; steering manually takes over. The server enforces movement, room access, occupancy and outcomes. Refreshing a tab reconnects to the same session and deadline. Restarting a hunt restores the original pets.
 
 ## Pets
 
@@ -90,6 +91,8 @@ In the local Node server, rooms, uploaded images and reconnect identities are he
 See [PLAN.md](PLAN.md) and [verification notes](docs/VERIFICATION.md) for completed checks and outstanding work. A live `gpt-4.1-mini` custom-card request returned an AI-labelled, balanced 20-point card. The local hiding and legacy move model paths have also returned AI mode. Physical-phone networking still requires its own checks; microphone hardware testing remains user-owned.
 
 ## Cloudflare and Sites
+
+Live game: [https://feral-hackathon.sugarybrine.chatgpt.site](https://feral-hackathon.sugarybrine.chatgpt.site). The Sites frontend and Durable Object backend are published with the synchronized start, traitors, graveyard elimination and phone control fixes.
 
 The browser frontend is packaged for Sites. Its public backend is `https://feral-game.maxmelander03.workers.dev`. `.env.production` contains only that public URL and the native WebSocket transport choice. The OpenAI key is a Cloudflare Worker secret, never a frontend variable.
 

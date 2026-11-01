@@ -128,3 +128,21 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - Cloudflare backend deployed and runtime OpenAI secret configured. Sites frontend publication and public end-to-end verification are tracked in PLAN.md until observed.
 
 - Public Cloudflare test against `feral-game.maxmelander03.workers.dev`: 301 connections, 21.0 seconds to join/connect, minimum 47 movement frames, zero unexpected disconnects; movement, pause/resume and reconnect passed. Runtime config reports AI configured. Server now completes close handshakes so departed clients release connection slots. This remains simulated-client evidence, not 300 physical phones.
+
+## Latest traitor and start-gate correction
+
+- The prior free-lobby movement behavior is superseded: movement now remains locked until host Start. Both screens use the same authoritative deadline; Stop freezes the entire game.
+- 48 tests pass, with new checks for the Start gate, one traitor per nine players, role privacy, collision ban, graveyard relocation, blocked care, safe spawning, pause safety and restart restoration. Production build and Worker typecheck pass.
+- Traitor identities are kept server-side. Only a player's private state reports their own role. Nearby collision candidates use a spatial grid; moving traitors have a two-second ban cooldown and cannot attack inside base camp or during the duvet animation.
+- Ban state travels with motion frames; the renderer teleports the pet to the graveyard instead of drawing a journey through walls. Phone controls block selection and iOS copy callouts.
+
+## Published Feral verification | 1 November 2026
+
+- Sites publication succeeded: https://feral-hackathon.sugarybrine.chatgpt.site. Version 1 uses source commit `2e59b42a777758514a6a2588f7e0a14f2f4560bc`; deployment `appgdep_6ae76f35659c8191a375874f7c9cb933` reached succeeded. Current frontend and backend source files match the packaged Sites checkout.
+- Latest Cloudflare Worker version: `aea55284-5efe-45b6-9df2-4e4ff82b867d`. Public runtime configuration confirms server-side AI configuration.
+- Repeated the public native-WebSocket test after deploying the traitor changes: 301 connections, 23,083 ms join time, minimum 75 motion frames per player, zero unexpected disconnects. Movement, Stop/Resume and reconnect passed.
+- Published-browser host creation and player joining passed. Phone arrows were disabled before Start; both screens showed 0:52 from the shared deadline. Stop froze both at 0:47 and disabled player actions; Resume continued the game. The finished phone showed 0:00 and its winner.
+- Rendered phone at 390 by 844: document and scroll widths both 390, with aligned controller and no horizontal overflow. Computed arrow user-select is none; Safari callout suppression is declared in CSS, but physical Safari was not tested here.
+- A separate nine-player public-backend check verified exactly one private traitor, shared deadlines, a real collision, zero usage and relocation to the graveyard. The death-message rendering is implemented; its exact eliminated-phone screen was not separately captured in this publication check.
+- All 48 automated tests and Worker TypeScript checks passed. The production build passed in the development chat. Browser logs had texture-load warnings but no observed render failure; the castle and phone companion rendered.
+- Remaining external checks: real venue phones/network and user-owned microphone hardware. GitHub workflow installation still requires workflow permission. These do not block the verified publication.

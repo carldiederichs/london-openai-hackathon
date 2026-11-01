@@ -29,6 +29,7 @@ export function createGameServer(
   const rooms = new Rooms(brain, (code) => dirty.add(code));
   const personalized = (state: PublicRoom, playerId: string): PublicRoom => ({
     ...state,
+    yourRole: rooms.roleFor(state.code, playerId),
     pets: state.pets.filter((p) => ownsPet(p, playerId)),
     players: state.players.filter((p) => p.id === playerId),
     events: state.events.slice(0, 5),
@@ -65,6 +66,7 @@ export function createGameServer(
       const pets = room.pets.map((p) => ({
         id: p.id,
         position: p.position,
+        bannedAt: p.bannedAt,
         moving: p.moving,
         location: p.location,
         usage: Math.round(p.usage * 10) / 10,

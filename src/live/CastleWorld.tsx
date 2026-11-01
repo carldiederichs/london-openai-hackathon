@@ -2356,6 +2356,12 @@ export default function CastleWorld(props: Props) {
         const pet = p.object.userData.pet as Pet;
         beforePosition.copy(p.object.position);
         let moving = false;
+        if (pet.bannedAt && p.object.userData.bannedAt !== pet.bannedAt) {
+          p.object.position.copy(p.target);
+          p.object.userData.bannedAt = pet.bannedAt;
+        }
+        if (p.sprite)
+          p.sprite.material.color.set(pet.bannedAt ? "#969b95" : "#ffffff");
         if (pet.position) {
           moving = !!pet.moving && !latest.current.paused;
           if (moving) realTimeMoving++;

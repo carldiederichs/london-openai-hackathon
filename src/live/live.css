@@ -1972,3 +1972,36 @@
     11px/1 ui-monospace,
     monospace;
 }
+
+/* Prevent iOS text selection and long-press copy callouts on the control pad. */
+.direction-pad,
+.direction-pad * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.direction-pad button * {
+  pointer-events: none;
+}
+.role-notice {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #d8dbc9;
+}
+.role-notice.traitor {
+  color: #ffc295;
+}
+.ban-notice {
+  margin: 12px 0;
+  padding: 14px;
+  background: #632d304d;
+  border: 1px solid #de8d8d66;
+  border-radius: 12px;
+  color: #ffc4bc;
+}
+.ban-notice p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}

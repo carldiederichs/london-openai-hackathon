@@ -10,6 +10,7 @@ export type Pet = {
   acted: boolean;
   position?: [number, number, number];
   moving?: boolean;
+  bannedAt?: number;
   image?: string;
   /** Codex atlas: 8 columns; 9 standard rows or 11 including look directions. */
   spriteRows?: 9 | 11;

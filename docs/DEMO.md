@@ -46,9 +46,11 @@ The normal take above prioritizes the merge, recovery and full-minute ending. Fi
 
 ## Claims to use accurately
 
-- “Up to 300 players” is the room limit. A local test connected **300 simulated player WebSockets plus a host** without unexpected disconnects. It is not evidence of 300 physical phones on venue Wi-Fi.
+- “Up to 300 players” is the room limit. The published Durable Object backend connected **300 simulated player WebSockets plus a host** without unexpected disconnects. It is not evidence of 300 physical phones on venue Wi-Fi.
 - AI generates custom cards and chooses the initial hiding room. Movement, access gates, health, merging and winners are enforced by game code. The model’s hidden chain of thought is not displayed.
-- This is a multiplayer website with a big-screen host and phone controllers. It is not a ChatGPT account-login integration or a publicly deployed service.
+- This is a multiplayer website with a big-screen host and phone controllers. It is publicly deployed at https://feral-hackathon.sugarybrine.chatgpt.site. Players use a game session, without ChatGPT account login.
 - Built-in sprites come from Max’s companion update. Credit Max and Owen in the video description alongside the repository link.
 
-Hosted recording uses the Sites URL when publication is verified in PLAN.md. Phones can explore before Start without spending usage; Start returns pets to base camp. The phone submission button is **Join game →**.
+Hosted recording uses https://feral-hackathon.sugarybrine.chatgpt.site. Phone arrows remain locked until the host presses Start, then both screens count down together. The phone submission button is **Join game →**.
+
+For the traitor version, prejoin nine players before recording. One phone privately reveals its traitor role at Start. Outside base camp, steer that pet into a seeker: the seeker moves to the graveyard and its phone shows **Banned for distillation — your pet is dead**. Use this beat instead of part of the room tour; keep the same 60-second hunt and highest-usage ending.
