@@ -223,7 +223,7 @@ The latest instruction supersedes lobby exploration: controls must remain locked
 - [x] Publish backend and Sites frontend, verify the public URL and host/player play, and push the code/docs milestone `7c6bb60` to main with matching remote hash.
 - [x] Update README, demo and verification record; save the sanitized local checkpoint with readback.
 
-Milestone `02e4a49` is already pushed and matches GitHub main. It predates the traitor correction. Public Cloudflare backend and its AI secret are working; the latest Sites frontend is not yet published. Sites source upload is still pending, so publication is not marked complete.
+Historical status before this publication closeout: milestone `02e4a49` had been pushed, while traitor changes and Sites publication were still pending. The verified publication checkpoint below supersedes that status.
 
 ## Publication checkpoint | 1 November 2026
 
