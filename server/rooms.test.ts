@@ -4,8 +4,8 @@ import { io as connect, type Socket } from "socket.io-client";
 import { once } from "node:events";
 import { createBrain, fallbackCard, type Brain } from "./brain.ts";
 import { MATING_DURATION_MS } from "../src/live/mating.ts";
-import { ownsPet } from "../src/live/shared.ts";
-import { Rooms } from "./rooms.ts";
+import { ownsPet, balanceStats } from "../src/live/shared.ts";
+import { Rooms, toddStats } from "./rooms.ts";
 import { createGameServer } from "./index.ts";
 import { accessible, STAT_KEYS, type Session } from "../src/live/shared.ts";
 import { ROOM_LORE } from "../src/live/lore.ts";
@@ -89,7 +89,7 @@ test("lobby capacity, identity, room isolation and public secret filtering", asy
   const { rooms, host, players, room } = await setup(10);
   await assert.rejects(
     rooms.join(host.roomCode, { name: "Extra", description: "cat" }),
-    /ten/,
+    /10/,
   );
   assert.throws(
     () => rooms.authenticate(rooms.create().roomCode, players[0].token),
@@ -503,9 +503,8 @@ test("real HTTP and Socket.IO clients authenticate, sync, reconnect and isolate 
   const pet = server.rooms.public(host.roomCode).pets[0];
   assert.equal(
     (
-      await command(reconnected, "player:submit", {
-        move: { type: "seek", petId: pet.id, prompt: "garden" },
-        round: 1,
+      await command(reconnected, "player:destination", {
+        location: "vet",
         generation: 1,
       })
     ).ok,
@@ -513,9 +512,15 @@ test("real HTTP and Socket.IO clients authenticate, sync, reconnect and isolate 
   );
   assert.equal(
     (await command(hs, "host:resolve", { round: 1, generation: 1 })).ok,
-    true,
+    false,
   );
-  assert.equal(server.rooms.public(host.roomCode).outcome, null);
+  const before = [...pet.position!];
+  await new Promise((resolve) => setTimeout(resolve, 180));
+  assert.notDeepEqual(
+    server.rooms.public(host.roomCode).pets[0].position,
+    before,
+  );
+  assert.equal(server.rooms.public(host.roomCode).reveal, null);
 });
 
 test("specialist habitats enforce swimming, flying, size, height and night vision", () => {
@@ -789,4 +794,33 @@ test("server ticker publishes the finish without host input", async () => {
     socket.disconnect();
     await server.close();
   }
+});
+
+test("a crowd covering every ability combination still gets a distinct balanced Todd card", async () => {
+  const { room } = await setup();
+  const pets = Array.from({ length: 31 }, (_, i) => i + 1)
+    .filter((mask) => mask.toString(2).replaceAll("0", "").length <= 3)
+    .map((mask) => ({
+      ...room.pets[0],
+      id: `crowd-${mask}`,
+      stats: balanceStats(
+        Object.fromEntries(
+          STAT_KEYS.map((key, bit) => [key, mask & (1 << bit) ? 8 : 1]),
+        ),
+      ),
+    }));
+  const signature = (stats: (typeof pets)[number]["stats"]) =>
+    STAT_KEYS.filter((key) => stats[key] >= 5).join(",");
+  assert.equal(new Set(pets.map((pet) => signature(pet.stats))).size, 25);
+  const shadow = toddStats(pets);
+  assert.equal(
+    Object.values(shadow).reduce((sum, value) => sum + value, 0),
+    20,
+  );
+  assert.ok(Object.values(shadow).every((value) => value >= 1 && value <= 8));
+  assert.ok(
+    pets.every((pet) =>
+      STAT_KEYS.some((key) => pet.stats[key] !== shadow[key]),
+    ),
+  );
 });

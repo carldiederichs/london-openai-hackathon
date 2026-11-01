@@ -2,7 +2,30 @@
 
 Checked on 2026-11-01. This file records evidence; PLAN.md is the authoritative task checklist.
 
-## Automated
+## Current Feral verification
+
+The current rules are real-time steering, hidden-Dot instant victory, highest remaining usage at one minute (exact ties share the win), shared two-pet merging, and a host-controlled whole-game pause. The older round, reciprocal-breeding, multi-floor and all-survivors records below are retained as historical evidence; they do not describe the current game.
+
+- **44 automated tests pass**, and the TypeScript production build passes. Current coverage includes real-time ownership and input validation, capacity, movement gates, hidden state, instant Dot discovery, timeout winners/ties, mating-room reservations and merging, care routes, and whole-game stop/resume behavior.
+- A live **`gpt-4.1-mini` custom-card request** returned `mode: ai` with a balanced **20-point** card. The credential is stored locally in an ignored environment file. Additional real hiding and legacy prompted-move requests returned AI mode; the hiding location was legal and the move valid.
+- Latest local WebSocket load check: **300 players plus one host**, 12 seconds of movement inputs, **at least 119 motion frames per player**, **zero unexpected disconnects**, event-loop p95 **18.84 ms**, maximum **46.07 ms**, CPU **3,377 ms**, process RSS **237 MB**, approximately **14 MB** received. Server and simulated clients ran locally. This does not establish venue Wi-Fi performance, physical phone performance or public hosting capacity.
+- Max's original Codex sprite roster is now the default in practice and live joining. Built-in joins send a companion identifier, not a duplicate sprite upload, and use preset balanced cards.
+- Compatible parts of Owen's PR #3 were integrated into the existing world: separate action/join rate limits and touch-release handling, with crowded-world hiding fallback handling. Its separate sandbox and Cloudflare worker were not substituted for this hunt or castle.
+- The visible timer now offers Start, Stop and Resume. Server code pauses movement, usage drain, breeding and the deadline together. Browser verified frozen countdown, disabled phone controls, reconnect while stopped and resumed countdown.
+
+- Browser verification: 300 pets rendered on the host with two real browser controllers and 298 simulated connections. Manual steering followed by care navigation reached the mating room; two parents merged into a shared child visible on both phones. The shared child reached the vet and won at the 0:00 deadline.
+- Detailed cutaway after merging: 299 actors, 584 draw calls, approximately 5.6 ms CPU frame work locally. This measures JavaScript/render submission, not GPU frame time or physical-device FPS. Phones render only a small map/controller.
+- Practice control spacing inspected at desktop and 390px; phone controller inspected at 390px with no horizontal document overflow. Pixel portraits and individual room props remained visible in the cutaway.
+
+### Current external checks
+
+- Live card, hiding-choice and legacy move requests are verified; historical missing-key notes below are superseded.
+- Physical-phone venue networking and device rendering performance remain to be checked. Scan the QR code on the shared network and verify joining, steering and reconnecting; inspect the host address and Wi-Fi client isolation if blocked.
+- Microphone hardware testing was explicitly left to the user. It is not required by the current real-time hunt.
+- No hosted deployment, durable account system or public internet load test has been performed.
+- GitHub workflow installation still needs a login with the required permission; no remote CI success is claimed.
+
+## Historical automated verification
 
 15 tests cover the live game: balanced cards, room gates, ownership, capacity, separate room identities, hidden-state filtering, stale and duplicate actions, single round resolution, capture, escape, reciprocal breeding, baby readiness, trap consumption, reset, vet limits, audience ties/expiry, and rollback after failed asynchronous work.
 
@@ -10,7 +33,7 @@ A real HTTP/Socket.IO integration test creates a room, joins a player, rejects p
 
 TypeScript and production builds pass. The Three.js scene is lazy-loaded; Vite reports its expected >500 KB scene chunk warning. The obsolete 2D prototype tests and Lucide dependency were removed with that implementation.
 
-## Browser observations
+## Historical browser observations
 
 - Rendered the original page early, then the real 3D scene and live screens.
 - Separate host and two seeker tabs joined the same room, using a description and a PNG upload. An invalid image produced an error; a valid PNG previewed and joined successfully.
@@ -28,14 +51,16 @@ TypeScript and production builds pass. The Three.js scene is lazy-loaded; Vite r
 
 GitHub rejected adding a workflow because the current OAuth login lacks `workflow` scope. The prepared configuration remains in `docs/github-actions-check.yml`; no remote CI success is claimed.
 
-## Remaining external checks
+## Historical external checks
+
+These record the state at the earlier turn-based milestone. The current status above supersedes the missing-key and live-game instructions in this section.
 
 - No working `OPENAI_API_KEY` was available. Actual paid model-backed cards, moves and hider choices remain unverified. Add the key to `.env.local`, restart, join a room, and confirm AI-labelled card/move events rather than fallback events.
 - Microphone hardware testing was explicitly left to the user. The manual path and server comparison rules were checked. On the host's localhost page, start a hunt, choose Measure cheering, allow the microphone, cheer in each three-second window and confirm the displayed result.
 - No physical phone was available to verify the venue network. Scan the QR code from a phone on the same network; verify joining, submitting and reconnecting. If blocked, check the host address and Wi-Fi client isolation.
 - No hosted deployment, durable database, account system, or public internet load test was requested or performed.
 
-## Expanded estate verification
+## Historical expanded estate verification
 
 - Final rules suite: 15 tests, including specialist habitat gates, tipsy ordering, cures, clean newborn status, reset cleanup and room lore emitted once. TypeScript and production build pass.
 - Browser exercised reciprocal breeding (80 usage per parent, baby ready next round), clinic healing and a rhyming move to the first-floor observatory. The roof opened and the floor selector followed the pets automatically.
@@ -94,3 +119,12 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - Phone seeker at 390px: document width 390px, clock and essential controls visible. TypeScript and production build pass; Three.js lazy bundle size advisory remains. Real API, microphone, physical phone and CI permission checks remain external.
 
 - Live browser reached 0:00 and awarded Dewey; practice reached 0:00 and listed ten surviving pets. Play again restored 1:00 and original usage in practice, and preserved the live player in a fresh lobby.
+
+## Durable Objects and phone repair — 1 November 2026
+
+- All 45 rules/transport/route tests pass, including free lobby movement without spending usage or discovering the Dot. Worker typecheck and production build pass.
+- Local Durable Object runtime: 301 native WebSockets, minimum 47 motion frames per player during the movement check, zero unexpected disconnects; lobby movement, host pause/resume and authenticated reconnect passed. This is separate from the earlier Node Socket.IO benchmark.
+- Phone browser at 390×844: visible Join game action submitted successfully; aligned system font and usage bar; active arrows before countdown; map position changed with held keyboard input. No waiting-for-host message remains. Physical Safari screenshots prompted this repair; physical-device retesting remains external.
+- Cloudflare backend deployed and runtime OpenAI secret configured. Sites frontend publication and public end-to-end verification are tracked in PLAN.md until observed.
+
+- Public Cloudflare test against `feral-game.maxmelander03.workers.dev`: 301 connections, 21.0 seconds to join/connect, minimum 47 movement frames, zero unexpected disconnects; movement, pause/resume and reconnect passed. Runtime config reports AI configured. Server now completes close handshakes so departed clients release connection slots. This remains simulated-client evidence, not 300 physical phones.

@@ -1,10 +1,12 @@
+> Current live play uses phone arrows/WASD on the same route graph. The server owns positions, care actions and outcomes; the host interpolates those positions. The journey-animation notes below describe practice and the retained turn-based renderer.
+
 # Visible pet movement
 
 Integrates Max's draft [PR #2](https://github.com/carldiederichs/london-openai-hackathon/pull/2), extended to the single-floor castle and larger gardens.
 
 ## Try it
 
-Open `/practice` and press **Start · 1 minute**. The pack automatically travels to legal habitats while the top-centre clock counts down. Select a pet and click a ring or search **Move to…** to direct it. Moves cost 10 usage; the vet restores 50. Pets with positive usage at zero share the win. This rehearsal makes no model calls and omits the live game's bottles and reciprocal breeding.
+Open `/practice` and press **Start** beneath the timer. The pack automatically travels to legal habitats while the top-centre clock counts down. Select a pet and click a ring or search **Move to…** to direct it. Moves cost 10 usage; the vet restores 50. Finding the hidden Dot wins immediately; at zero, the highest remaining usage wins and exact ties share the win. Two pets in the mating room merge into a shared child. Stop/Resume freezes the clock and movement. This rehearsal makes no model calls and omits the live game’s bottles.
 
 The **··· camera menu** contains Follow pet, Reset view, zoom and Simple view. **More** in practice contains image upload, auto-move, Move Todd, movement pause and reset. Pausing movement does not pause the clock. The permanent travel roster and instructions were removed.
 

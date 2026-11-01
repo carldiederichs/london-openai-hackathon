@@ -203,7 +203,10 @@ export function roomPoint(location: string, index = 0, count = 1): Point {
   const base = INTERIORS[location] || POSITIONS[location];
   if (!base) throw new Error(`Unknown castle location: ${location}`);
   if (location === "camp") {
-    const columns = Math.min(5, Math.max(1, count)),
+    const columns =
+        count > 20
+          ? Math.ceil(Math.sqrt(count))
+          : Math.min(5, Math.max(1, count)),
       rows = Math.ceil(count / columns);
     return [
       base[0] + ((index % columns) - (columns - 1) / 2) * 1.6,
@@ -417,3 +420,71 @@ export function spriteFrame(
     height: 1 / rows,
   };
 }
+
+// Directional play follows the same door/path graph as animated journeys.
+// Keeping the authoritative cursor on an edge prevents walking through walls.
+export type NavCursor = { node: string; to?: string; progress: number };
+export function steerOnPaths(
+  cursor: NavCursor,
+  dx: number,
+  dz: number,
+  budget: number,
+  canEnter: (id: string) => boolean,
+  waypoint?: string,
+): { cursor: NavCursor; position: Point; arrived: string[]; moving: boolean } {
+  const next = { ...cursor },
+    arrived: string[] = [];
+  let travelled = 0;
+  const norm = Math.hypot(dx, dz);
+  if (norm) {
+    dx /= norm;
+    dz /= norm;
+  }
+  for (let step = 0; step < 12 && budget > 0.000001 && norm > 0; step++) {
+    if (!next.to) {
+      let best = 0.2;
+      for (const [a, b] of EDGES) {
+        const id = a === next.node ? b : b === next.node ? a : undefined;
+        if (!id || !canEnter(id) || (waypoint && id !== waypoint)) continue;
+        const vx = NODES[id][0] - NODES[next.node][0],
+          vz = NODES[id][2] - NODES[next.node][2];
+        const score = (vx * dx + vz * dz) / (Math.hypot(vx, vz) || 1);
+        if (score > best) {
+          best = score;
+          next.to = id;
+        }
+      }
+      if (!next.to) break;
+      next.progress = 0;
+    }
+    const a = point(next.node),
+      b = point(next.to),
+      length = Math.max(0.01, distance(a, b));
+    const dot = (b[0] - a[0]) * dx + (b[2] - a[2]) * dz;
+    const reverse = dot < -0.01;
+    const available = reverse
+      ? next.progress * length
+      : (1 - next.progress) * length;
+    const amount = Math.min(budget, available);
+    next.progress += (reverse ? -amount : amount) / length;
+    travelled += amount;
+    budget -= amount;
+    if (amount + 0.0001 < available) break;
+    if (!reverse) {
+      next.node = next.to;
+      arrived.push(next.node);
+    }
+    next.to = undefined;
+    next.progress = 0;
+    if (waypoint) break;
+  }
+  const a = point(next.node),
+    b = next.to ? point(next.to) : a;
+  const position = a.map((v, i) => v + (b[i] - v) * next.progress) as Point;
+  return { cursor: next, position, arrived, moving: travelled > 0 };
+}
+export const navigationPoints = () =>
+  Object.fromEntries(Object.entries(NODES).map(([id]) => [id, point(id)]));
+export const navigationRoute = (from: string, to: string) => [
+  ...groundRoute(from, to),
+];

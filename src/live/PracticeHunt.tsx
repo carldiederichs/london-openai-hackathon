@@ -1,5 +1,6 @@
 import {
   advanceMating,
+  shiftPetClocks,
   enterMatingRoom,
   matingBusy,
   matingOccupants,
@@ -60,6 +61,7 @@ export default function PracticeHunt() {
   const [todd, setTodd] = useState(0);
   const [travel, setTravel] = useState<Travel[]>([]);
   const [paused, setPaused] = useState(false);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [tour, setTour] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
@@ -67,8 +69,24 @@ export default function PracticeHunt() {
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [winners, setWinners] = useState<string[] | null>(null);
   const trip = useRef(0);
+  const wasTravelling = useRef(false);
+  useEffect(() => {
+    if (travel.length) {
+      wasTravelling.current = true;
+      return;
+    }
+    if (!wasTravelling.current) return;
+    wasTravelling.current = false;
+    if (endsAt === null || Date.now() >= endsAt || winners !== null) return;
+    const found = pets.find((p) => p.location === HIDING[todd] && p.usage > 0);
+    if (found) {
+      setWinners([found.id]);
+      setTour(false);
+      setMessage(`${found.name} found the hidden Dot!`);
+    }
+  }, [travel.length, pets, todd, endsAt, winners]);
   const previousCount = useRef(pets.length);
-  const seconds = useSecondsLeft(endsAt);
+  const seconds = useSecondsLeft(endsAt, undefined, pausedAt);
   const expired = endsAt !== null && seconds === 0;
   const finished = winners !== null;
   const active = endsAt !== null && !finished && !expired;
@@ -99,7 +117,12 @@ export default function PracticeHunt() {
     paused || (endsAt !== null && Date.now() >= endsAt) || finished;
   useEffect(() => {
     if (!expired || finished) return;
-    setWinners(survivorIds(pets, 1));
+    const best = Math.max(0, ...pets.map((p) => p.usage));
+    setWinners(
+      survivorIds(pets, 1).filter(
+        (id) => pets.find((p) => p.id === id)!.usage === best,
+      ),
+    );
     setTour(false);
     setMessage("");
   }, [expired, finished, pets]);
@@ -108,10 +131,28 @@ export default function PracticeHunt() {
     setWinners(null);
     setEndsAt(Date.now() + HUNT_DURATION_MS);
     setPaused(false);
+    setPausedAt(null);
     setTour(true);
-    setTodd(0);
+    setTodd(Math.floor(Math.random() * HIDING.length));
     trip.current = 0;
     setMessage("");
+  }
+  function toggleTimer() {
+    if (endsAt === null) {
+      start();
+      return;
+    }
+    const now = Date.now();
+    if (pausedAt !== null) {
+      const duration = now - pausedAt;
+      setEndsAt((end) => (end === null ? null : end + duration));
+      setPets((current) => shiftPetClocks(current, duration));
+      setPausedAt(null);
+      setPaused(false);
+    } else {
+      setPausedAt(now);
+      setPaused(true);
+    }
   }
   function move(id: string) {
     if (locked() || busyMating) return;
@@ -177,7 +218,7 @@ export default function PracticeHunt() {
         };
       }),
     );
-    setTodd((current) => (current + 1) % HIDING.length);
+    if (!active) setTodd((current) => (current + 1) % HIDING.length);
     setMessage("");
   }
   useEffect(() => {
@@ -188,6 +229,8 @@ export default function PracticeHunt() {
   return (
     <main className="live-app practice-app" aria-label="Feral practice">
       <HuntClock
+        paused={paused}
+        onToggle={toggleTimer}
         seconds={finished ? 0 : seconds}
         finished={finished}
         waiting={endsAt === null}
@@ -197,7 +240,7 @@ export default function PracticeHunt() {
         pets={pets}
         selected={room}
         selectedPet={selected}
-        todd={HIDING[todd]}
+        todd={active ? undefined : HIDING[todd]}
         allowed={LIVE_LOCATIONS.filter((l) => accessible(pet, l.id)).map(
           (l) => l.id,
         )}
@@ -215,9 +258,9 @@ export default function PracticeHunt() {
           >
             ←
           </a>
-          {!active ? (
+          {finished || expired ? (
             <button className="primary" onClick={start}>
-              {finished || expired ? "Play again" : "Start · 1 minute"}
+              Play again
             </button>
           ) : (
             <button disabled={paused} onClick={sendPack}>
@@ -405,14 +448,6 @@ export default function PracticeHunt() {
             />
           </label>
           <button
-            data-pause
-            aria-pressed={paused}
-            disabled={finished || expired || occupancy > 0}
-            onClick={() => setPaused(!paused)}
-          >
-            {paused ? "Resume movement" : "Pause movement"}
-          </button>
-          <button
             aria-pressed={tour}
             disabled={finished || expired}
             onClick={() => setTour(!tour)}
@@ -431,6 +466,7 @@ export default function PracticeHunt() {
               setWinners(null);
               setPets(starters());
               setPaused(false);
+              setPausedAt(null);
               setTour(false);
               trip.current = 0;
               setTodd(0);
@@ -440,10 +476,10 @@ export default function PracticeHunt() {
             Reset practice
           </button>
           <small>
-            Practice only. Moves cost 10 usage; the vet restores 50. The clock
-            keeps running when movement is paused. Phone play includes bottles
-            and audience interventions. Two pets in the mating room merge after
-            eight seconds; both owners share the new pet.
+            Practice only. Moves cost 10 usage; the vet restores 50. Stop pauses
+            the clock and movement. Phone play includes hidden bottles and
+            Tibo’s reset. Two pets in the mating room merge after eight seconds;
+            both owners share the new pet.
           </small>
         </details>
         {message && (

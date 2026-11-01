@@ -75,9 +75,7 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 
 ## External checks still open
 
-- [ ] **Blocked**: Real model-backed card, move and hider verification requires a
-      working server-side OPENAI_API_KEY in .env.local. No key was available.
-      Never put the key in source, browser variables or chat.
+- [x] Real OpenAI custom-card, hiding-choice and legacy prompted-move requests returned AI mode; card balanced to 20 points and hiding choice legal. Key is in ignored `.env.local`, never source or browser variables.
 - [ ] **User-owned**: Microphone hardware check. The user explicitly chose to do it.
 - [ ] **Not observed**: Joining from a physical phone on the venue network. Browser
       sessions and responsive layouts are tested; Wi-Fi isolation and physical
@@ -88,7 +86,7 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - The separate live PR plan was superseded by direct-to-main pushes.
 - Preserving the 2D prototype was superseded by deleting it.
 - Header/hero/card-dashboard layouts were superseded by edge-only glass overlays.
-- Identity voting, a human hider, hosting deployment, teammate invitations and a
+- Identity voting, a human hider and a
   persistent account/database system were not selected.
 
 ## Visible mechanics and pet habitats
@@ -183,10 +181,33 @@ Multiple playable floors, cellars as a separate floor and floor cycling are supe
 
 This supersedes turn-by-turn prompts and the ten-player cap. Preserve the mansion display and existing care mechanics.
 
-- [ ] **In progress** — server-authoritative real-time movement with phone arrow/WASD controls, QR joining, persistent room sessions and up to 300 player connections.
-- [ ] Swipeable default Codex pet picker plus existing custom image/description option.
-- [ ] Hide the Dot before the game; never expose its location to active clients. Finding it instantly wins; otherwise determine survival result at the 60-second deadline.
-- [ ] Preserve two-place mating, shared pet ownership, vet/bottles/reset and connected castle routes in real-time play.
-- [ ] Batch updates and load-test 300 simultaneous WebSocket clients; report local measurements and distinguish venue/device capacity.
-- [ ] Browser-check host + multiple phone controllers, movement, joining/reconnect, hidden Dot and both endings. Push verified changes to main.
-- [ ] **Waiting** — review and selectively integrate Owen's changes when available; no branch or PR supplied yet.
+- [x] Server-authoritative real-time movement with phone arrow/WASD controls, QR joining, persistent room sessions and up to 300 player connections.
+- [x] Swipeable default Codex pet picker plus existing custom image/description option; swiping and joining verified in browser.
+- [x] Hide the Dot before the game; never expose its location to active clients. Finding it instantly wins; otherwise determine survival result at the 60-second deadline.
+- [x] Preserve two-place mating, shared pet ownership, vet/bottles/reset and connected castle routes in real-time play; care-route, reservation and merge regression tests pass.
+- [x] Batch updates and load-test 300 simultaneous player WebSockets plus host. Final 12-second run: minimum 119 motion frames/player, zero unexpected disconnects; p95 event-loop delay 18.84 ms. Local clients, not venue-device proof.
+- [x] Browser verified host + two phone controllers, swiping/joining, steering, reconnect, care-route merge/shared ownership, vet, Stop/Resume and the 0:00 highest-usage winner. Instant Dot capture and exact ties verified in rules tests. Publication tracked separately.
+- [x] Reconciled Owen PR #3 (`a6cfafb`): ported separate venue join/create limits, touch release/page-hide handling and full-crowd Todd-card fallback. Kept integrated castle paths, hidden Dot, shared breeding and current visuals. Standalone sandbox/Cloudflare backend left out because it lacks these rules and uses incompatible bounds. Draft remains open; compatible work was ported, not blindly merged.
+- [x] Verify Owen’s access: existing write invitation pending; Owen successfully opened draft PR #3, so no additional permission change was needed.
+- [x] Subagent updated Feral README and companion docs; current live rules and verification docs reviewed.
+
+- [x] Max’s actual Codex pets are the default. Every room has batched specialist props and gardens have lanterns/shared warm lighting. Browser inspected detailed cutaway with 300 pets; settled cutaway after merging had 299 actors, 584 draw calls and ~5.6 ms CPU frame work locally (not physical-device FPS).
+- [x] Aligned practice pet grid, sprite slots, two-line names, back/action row and usage row. Desktop and 390px renders inspected; narrow document width equals scroll width.
+
+Current verification: 45 tests and production build pass. Local 301-WebSocket load test repeated after integration; final measurement recorded above. Irregular-tick routing regression covers manual movement followed by care navigation.
+
+## Latest timer and AI configuration requests
+
+- [x] Visible Start / Stop / Resume beside clock in practice and host. Browser verified frozen countdown, disabled phone controls, reconnect while stopped and resumed countdown. Host authority and frozen mating deadlines covered by test. Removed duplicate Start controls and spare tagline.
+- [x] Enabled the supplied scoped OpenAI key in ignored mode-0600 `.env.local`; server reports configured. Real card, hider and legacy move requests returned AI mode. Source credential scan clean.
+
+- [x] Subagent prepared `docs/DEMO.md`: setup, exact clicks, timed 90-second shots and both endings. Recheck final phone labels and hosting URL in the item below.
+
+## Reopened phone usability and Sites hosting
+
+- [x] Replace cramped phone overlays with a single-column flow, system font, aligned usage bar and visible Join game button. Browser verified submission and live map movement at 390px. Lobby exploration is active without usage/traps/wins; the host countdown resets pets to camp.
+- [x] Implement Cloudflare Durable Objects using the existing game rules, durable snapshots, authenticated native WebSockets and separate venue join/create limits. Local Worker test: 301 connections, minimum 47 movement frames, zero disconnects, lobby steering, pause/resume and reconnect.
+- [x] Deploy Worker with server-side OpenAI secret. Public endpoint native-WebSocket test: 301 connections, minimum 47 movement frames, zero disconnects, movement/pause/resume/reconnect verified.
+- [ ] **In progress** — publish the Sites frontend and verify phone/host play from its final URL.
+- [ ] Publish on Sites, verify the returned deployment URL and phone/host shared state, then document hosted setup and limits. Never place API credentials in frontend assets or Git.
+- [ ] Reconcile the 90-second demo instructions with the final phone controls and deployed URL.

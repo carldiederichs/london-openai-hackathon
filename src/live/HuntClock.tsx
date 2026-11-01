@@ -3,13 +3,17 @@ import { HUNT_DURATION_MS } from "./shared";
 
 // Live clocks are anchored to the server's snapshot and monotonic elapsed time.
 // Only the server decides the result; reaching zero here never awards a win.
-export function useSecondsLeft(endsAt: number | null, serverNow?: number) {
+export function useSecondsLeft(
+  endsAt: number | null,
+  serverNow?: number,
+  pausedAt?: number | null,
+) {
   const anchor = useMemo(
     () => ({
-      time: serverNow ?? Date.now(),
+      time: pausedAt ?? serverNow ?? Date.now(),
       received: performance.now(),
     }),
-    [endsAt, serverNow],
+    [endsAt, serverNow, pausedAt],
   );
   const remaining = () =>
     endsAt === null
@@ -17,19 +21,23 @@ export function useSecondsLeft(endsAt: number | null, serverNow?: number) {
       : Math.max(
           0,
           Math.ceil(
-            (endsAt - anchor.time - (performance.now() - anchor.received)) /
+            (endsAt -
+              anchor.time -
+              (pausedAt != null ? 0 : performance.now() - anchor.received)) /
               1000,
           ),
         );
   const [, refresh] = useState(60);
   useEffect(() => {
-    if (endsAt === null) return;
+    if (endsAt === null || pausedAt != null) return;
     const update = () =>
       refresh(
         Math.max(
           0,
           Math.ceil(
-            (endsAt - anchor.time - (performance.now() - anchor.received)) /
+            (endsAt -
+              anchor.time -
+              (pausedAt != null ? 0 : performance.now() - anchor.received)) /
               1000,
           ),
         ),
@@ -37,7 +45,7 @@ export function useSecondsLeft(endsAt: number | null, serverNow?: number) {
     update();
     const timer = window.setInterval(update, 100);
     return () => window.clearInterval(timer);
-  }, [endsAt, anchor]);
+  }, [endsAt, anchor, pausedAt]);
   // Recompute on a new snapshot immediately; never reuse the old hunt's elapsed time.
   return remaining();
 }
@@ -47,11 +55,17 @@ export default function HuntClock({
   finished,
   winners = [],
   waiting = false,
+  paused = false,
+  onToggle,
+  disabled = false,
 }: {
   seconds: number;
   finished: boolean;
   winners?: string[];
   waiting?: boolean;
+  paused?: boolean;
+  onToggle?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div
@@ -65,6 +79,12 @@ export default function HuntClock({
       >
         {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
       </div>
+      {onToggle && !finished && (
+        <button className="clock-toggle" disabled={disabled} onClick={onToggle}>
+          {waiting ? "Start" : paused ? "Resume" : "Stop"}
+        </button>
+      )}
+      {paused && <small role="status">Game stopped</small>}
       {finished ? (
         <div className="clock-result" role="status">
           <strong>
@@ -76,8 +96,6 @@ export default function HuntClock({
           </strong>
           {winners.length > 0 && <span>{winners.join(" · ")}</span>}
         </div>
-      ) : waiting ? (
-        <small>Survive one minute</small>
       ) : seconds === 0 ? (
         <small>Time’s up</small>
       ) : null}

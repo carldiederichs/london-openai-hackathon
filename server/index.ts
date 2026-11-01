@@ -7,7 +7,12 @@ import { Server } from "socket.io";
 import { config } from "dotenv";
 import { createBrain, type Brain } from "./brain.ts";
 import { Rooms } from "./rooms.ts";
-import type { Session } from "../src/live/shared.ts";
+import {
+  ownsPet,
+  petOwners,
+  type Session,
+  type PublicRoom,
+} from "../src/live/shared.ts";
 
 config({ path: ".env.local", quiet: true });
 config({ quiet: true });
@@ -20,11 +25,65 @@ export function createGameServer(
   const app = express(),
     http = createServer(app);
   const io = new Server(http, { maxHttpBufferSize: 32_000 });
-  const rooms = new Rooms(brain, (code) =>
-    io.to(code).emit("room:state", rooms.public(code)),
-  );
-  const expiryTimer = setInterval(() => rooms.tick(), 100);
+  const dirty = new Set<string>();
+  const rooms = new Rooms(brain, (code) => dirty.add(code));
+  const personalized = (state: PublicRoom, playerId: string): PublicRoom => ({
+    ...state,
+    pets: state.pets.filter((p) => ownsPet(p, playerId)),
+    players: state.players.filter((p) => p.id === playerId),
+    events: state.events.slice(0, 5),
+  });
+  const publish = (code: string) => {
+    if (!rooms.rooms.has(code)) return;
+    const state = rooms.public(code);
+    io.to(`${code}:host`).emit("room:state", state);
+    if (state.mode === "turns")
+      io.to(`${code}:players`).emit("room:state", state);
+    else
+      for (const player of state.players)
+        io.to(`${code}:${player.id}`).emit(
+          "room:state",
+          personalized(state, player.id),
+        );
+  };
+  const expiryTimer = setInterval(() => rooms.tick(), 50);
   expiryTimer.unref();
+  let pulse = 0;
+  const networkTimer = setInterval(() => {
+    pulse++;
+    if (pulse % 5 === 0) {
+      for (const code of dirty) publish(code);
+      dirty.clear();
+    }
+    for (const room of rooms.rooms.values()) {
+      if (
+        room.mode !== "realtime" ||
+        !["lobby", "seeking"].includes(room.phase) ||
+        room.pausedAt !== null
+      )
+        continue;
+      const pets = room.pets.map((p) => ({
+        id: p.id,
+        position: p.position,
+        moving: p.moving,
+        location: p.location,
+        usage: Math.round(p.usage * 10) / 10,
+      }));
+      const frame = {
+        generation: room.generation,
+        serverNow: Date.now(),
+        pets,
+      };
+      io.to(`${room.code}:host`).volatile.emit("room:motion", frame);
+      for (let i = 0; i < room.pets.length; i++)
+        for (const owner of petOwners(room.pets[i]))
+          io.to(`${room.code}:${owner}`).volatile.emit("room:motion", {
+            ...frame,
+            pets: [pets[i]],
+          });
+    }
+  }, 100);
+  networkTimer.unref();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "300kb" }));
   app.use((_req, res, next) => {
@@ -46,17 +105,18 @@ export function createGameServer(
     }),
   );
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
-  // Bound model usage without logging player images or prompts. Ten phones may share an IP.
+  // Separate venue-IP budgets: a crowd joining must not block host room creation.
   const requests = new Map<string, { time: number; count: number }>();
   app.use("/api/rooms", (req, res, next) => {
     if (req.method !== "POST") return next();
     const now = Date.now();
     for (const [key, value] of requests)
       if (now - value.time > 60_000) requests.delete(key);
-    const key = req.ip || "unknown",
+    const kind = req.path.endsWith("/join") ? "join" : "create";
+    const key = `${req.ip || "unknown"}:${kind}`,
       count = requests.get(key) || { time: now, count: 0 };
     requests.set(key, count);
-    if (++count.count > 40) {
+    if (++count.count > (req.path.endsWith("/join") ? 650 : 40)) {
       res.status(429).json({
         ok: false,
         error: "Too many requests. Wait a minute and try again.",
@@ -67,7 +127,7 @@ export function createGameServer(
   });
   app.post("/api/rooms", (_req, res, next) => {
     try {
-      res.json({ ok: true, data: rooms.create() });
+      res.json({ ok: true, data: rooms.create("realtime") });
     } catch (e) {
       next(e);
     }
@@ -108,12 +168,20 @@ export function createGameServer(
   io.on("connection", (socket) => {
     const session: Session = socket.data.session;
     socket.join(session.roomCode);
+    socket.join(`${session.roomCode}:${session.playerId || "host"}`);
+    if (session.role === "player") socket.join(`${session.roomCode}:players`);
     const key = `${session.roomCode}:${session.playerId || "host"}`;
     const set = connections.get(key) || new Set<string>();
     set.add(socket.id);
     connections.set(key, set);
     rooms.connected(session, true);
-    socket.emit("room:state", rooms.public(session.roomCode));
+    const initial = rooms.public(session.roomCode);
+    socket.emit(
+      "room:state",
+      session.role === "player" && initial.mode === "realtime"
+        ? personalized(initial, session.playerId!)
+        : initial,
+    );
     const action = (event: string, fn: (data: any) => unknown) =>
       socket.on(event, async (data, ack) => {
         if (typeof ack !== "function") return;
@@ -128,7 +196,20 @@ export function createGameServer(
           });
         }
       });
+    let lastSequence = -1;
+    socket.on("player:steer", (data) => {
+      if (!data || !Number.isSafeInteger(data.seq) || data.seq <= lastSequence)
+        return;
+      try {
+        rooms.steer(session, data);
+        lastSequence = data.seq;
+      } catch {
+        /* Stale or forged frames never change the world. */
+      }
+    });
+    action("player:destination", (d) => rooms.destination(session, d));
     action("host:start", () => rooms.start(session));
+    action("host:pause", (d) => rooms.pause(session, d?.paused));
     action("host:resolve", (d) =>
       rooms.resolve(session, d?.round, d?.generation),
     );
@@ -142,7 +223,10 @@ export function createGameServer(
       set.delete(socket.id);
       if (!set.size) {
         connections.delete(key);
-        if (rooms.rooms.has(session.roomCode)) rooms.connected(session, false);
+        if (rooms.rooms.has(session.roomCode)) {
+          rooms.stop(session);
+          rooms.connected(session, false);
+        }
       }
     });
   });
@@ -175,6 +259,7 @@ export function createGameServer(
     rooms,
     close: () => {
       clearInterval(expiryTimer);
+      clearInterval(networkTimer);
       return new Promise<void>((done) =>
         io.close(() => http.close(() => done())),
       );

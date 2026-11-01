@@ -1,5 +1,14 @@
+import { CODEX_PETS } from "../src/pets.ts";
+import {
+  roomPoint,
+  navigationPoints,
+  navigationRoute,
+  steerOnPaths,
+  type NavCursor,
+} from "../src/live/movement.ts";
 import {
   advanceMating,
+  shiftPetClocks,
   enterMatingRoom,
   matingBusy,
   matingOccupants,
@@ -10,6 +19,7 @@ import {
   accessible,
   ownsPet,
   petOwners,
+  MAX_PLAYERS,
   HUNT_DURATION_MS,
   survivorIds,
   ADVANTAGES,
@@ -32,6 +42,12 @@ import type { Brain, CardInput, HideResult } from "./brain.ts";
 type Member = Player & { token: string };
 export type Room = {
   code: string;
+  mode: "turns" | "realtime";
+  lastTick: number;
+  controllers: Map<string, { dx: number; dz: number; at: number; seq: number }>;
+  cursors: Map<string, NavCursor>;
+  visits: Map<string, string>;
+  destinations: Map<string, string>;
   hostToken: string;
   phase: PublicRoom["phase"];
   round: number;
@@ -55,8 +71,10 @@ export type Room = {
   joining: number;
   touched: number;
   endsAt: number | null;
+  pausedAt: number | null;
   winnerPetIds: string[];
 };
+const pathPoints = navigationPoints();
 const token = () => randomBytes(24).toString("base64url");
 const constraintFor = (round: number): Constraint =>
   ["eight", "emoji", "rhyme", "eight"][(round - 1) % 4] as Constraint;
@@ -65,6 +83,9 @@ const signature = (stats: Stats) =>
 export function toddStats(pets: LivePet[]): Stats {
   const used = new Set(pets.map((p) => signature(p.stats)));
   const candidates: Stats[] = [];
+  const cardKey = (stats: Stats) =>
+    STAT_KEYS.map((key) => stats[key]).join(",");
+  const usedCards = new Set(pets.map((pet) => cardKey(pet.stats)));
   for (let a = 1; a <= 8; a++)
     for (let b = 1; b <= 8; b++)
       for (let c = 1; c <= 8; c++)
@@ -78,18 +99,24 @@ export function toddStats(pets: LivePet[]): Stats {
             climb: d,
             swim: e,
           };
-          if (signature(stats) && !used.has(signature(stats)))
-            candidates.push(stats);
+          if (signature(stats)) candidates.push(stats);
         }
-  if (!candidates.length)
-    throw new Error("No distinct Todd card is available.");
-  // Shadow one seeker, redistributing the fewest points needed to unlock a
-  // different set of abilities from every member of the party.
+  const distinctAbilities = candidates.filter(
+    (stats) => !used.has(signature(stats)),
+  );
+  // A crowd can cover every ability combination. Keep Todd's full stat card
+  // distinct instead, so a full room can still start a balanced hunt.
+  const available = distinctAbilities.length
+    ? distinctAbilities
+    : candidates.filter((stats) => !usedCards.has(cardKey(stats)));
+  if (!available.length) throw new Error("No distinct Todd card is available.");
+  // Shadow one seeker with the nearest distinct card, preferring a
+  // different set of unlocked abilities whenever one remains available.
   const source = pets[Math.floor(Math.random() * pets.length)].stats;
   const distance = (s: Stats) =>
     STAT_KEYS.reduce((sum, k) => sum + Math.abs(s[k] - source[k]), 0);
-  const nearest = Math.min(...candidates.map(distance));
-  const shadows = candidates.filter((s) => distance(s) === nearest);
+  const nearest = Math.min(...available.map(distance));
+  const shadows = available.filter((s) => distance(s) === nearest);
   return shadows[Math.floor(Math.random() * shadows.length)];
 }
 export class Rooms {
@@ -103,10 +130,26 @@ export class Rooms {
   // also checked at command boundaries, so an action cannot sneak past expiry.
   private finishIfExpired(room: Room): boolean {
     if (room.phase === "over") return true;
+    if (room.pausedAt !== null) return false;
     if (room.endsAt === null || this.now() < room.endsAt) return false;
     room.phase = "over";
     room.outcome = "survived";
-    room.winnerPetIds = survivorIds(room.pets, room.round);
+    const survivors = survivorIds(room.pets, room.round);
+    const best = Math.max(
+      0,
+      ...room.pets.filter((p) => survivors.includes(p.id)).map((p) => p.usage),
+    );
+    room.winnerPetIds =
+      room.mode === "realtime"
+        ? room.pets
+            .filter((p) => p.usage > 0 && p.usage === best)
+            .map((p) => p.id)
+        : survivors;
+    room.pets.forEach((p) => {
+      p.moving = false;
+    });
+    room.controllers.clear();
+    room.destinations.clear();
     room.submissions = {};
     const names = room.pets
       .filter((p) => room.winnerPetIds.includes(p.id))
@@ -123,17 +166,32 @@ export class Rooms {
   tick() {
     for (const room of this.rooms.values()) {
       if (
+        room.pausedAt !== null ||
         this.finishIfExpired(room) ||
-        room.endsAt === null ||
+        (room.endsAt === null && room.mode !== "realtime") ||
         ["resolving", "hiding"].includes(room.phase)
       )
         continue;
+      if (room.mode === "realtime") this.stepWorld(room);
+      if (room.phase === "over" || room.phase === "lobby") continue;
       const pets = advanceMating(room.pets, this.now(), randomUUID);
       if (pets !== room.pets) {
         if (pets.length < room.pets.length) {
           const child = pets.find(
             (p) => !room.pets.some((old) => old.id === p.id),
           )!;
+          if (room.mode === "realtime") {
+            child.position = roomPoint("nursery");
+            child.moving = false;
+            room.cursors.set(child.id, { node: "nursery", progress: 0 });
+            for (const parent of room.pets)
+              if (!pets.some((p) => p.id === parent.id)) {
+                room.cursors.delete(parent.id);
+                room.controllers.delete(parent.id);
+                room.destinations.delete(parent.id);
+                room.visits.delete(parent.id);
+              }
+          }
           for (const player of room.players)
             if (ownsPet(child, player.id)) player.petId = child.id;
           this.event(
@@ -144,6 +202,244 @@ export class Rooms {
         }
         room.pets = pets;
         this.changed(room.code);
+      }
+    }
+  }
+  steer(session: Session, data: unknown) {
+    const verified = this.authenticate(session.roomCode, session.token),
+      room = this.get(session.roomCode);
+    if (
+      verified.role !== "player" ||
+      room.mode !== "realtime" ||
+      room.pausedAt !== null ||
+      !["lobby", "seeking"].includes(room.phase)
+    )
+      throw new Error("Movement is closed.");
+    const input = data as {
+      dx?: number;
+      dz?: number;
+      seq?: number;
+      generation?: number;
+    };
+    if (
+      !input ||
+      input.generation !== room.generation ||
+      !Number.isSafeInteger(input.seq) ||
+      ![input.dx, input.dz].every(
+        (v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1,
+      )
+    )
+      throw new Error("Invalid movement input.");
+    const pet = room.pets.find((p) => ownsPet(p, verified.playerId));
+    if (!pet || pet.usage <= 0 || matingBusy(pet)) return;
+    const previous = room.controllers.get(pet.id);
+    // Sequence belongs to the socket transport, not shared pet ownership.
+    if (previous && this.now() - previous.at < 35 && (input.dx || input.dz))
+      return;
+    if (input.dx || input.dz) room.destinations.delete(pet.id);
+    room.controllers.set(pet.id, {
+      dx: input.dx!,
+      dz: input.dz!,
+      seq: input.seq!,
+      at: this.now(),
+    });
+  }
+  destination(session: Session, data: unknown) {
+    const verified = this.authenticate(session.roomCode, session.token),
+      room = this.get(session.roomCode);
+    const input = data as { location?: string; generation?: number };
+    if (
+      verified.role !== "player" ||
+      room.mode !== "realtime" ||
+      room.pausedAt !== null ||
+      room.phase !== "seeking" ||
+      input?.generation !== room.generation
+    )
+      throw new Error("Movement is closed.");
+    const pet = room.pets.find((p) => ownsPet(p, verified.playerId));
+    if (!pet || pet.usage <= 0 || matingBusy(pet))
+      throw new Error("This pet cannot move right now.");
+    const id = input.location;
+    if (
+      typeof id !== "string" ||
+      !(id === "vet" || id === "nursery" || accessible(pet, id))
+    )
+      throw new Error("That destination is locked.");
+    if (
+      id === "nursery" &&
+      (pet.usage < 20 || matingOccupants(room.pets).length >= 2)
+    )
+      throw new Error("Mating needs 20 usage and a free place (two maximum).");
+    room.destinations.set(pet.id, id);
+    room.controllers.delete(pet.id);
+  }
+  stop(session: Session) {
+    const room = this.rooms.get(session.roomCode);
+    if (!room) return;
+    for (const pet of room.pets)
+      if (ownsPet(pet, session.playerId)) {
+        room.controllers.delete(pet.id);
+        room.destinations.delete(pet.id);
+        pet.moving = false;
+      }
+  }
+  private stepWorld(room: Room) {
+    const now = this.now(),
+      elapsed = Math.max(0, (now - room.lastTick) / 1000),
+      dt = Math.min(0.15, elapsed);
+    room.lastTick = now;
+    if (!["lobby", "seeking"].includes(room.phase)) return;
+    const playing = room.phase === "seeking";
+    const occupied = () => matingOccupants(room.pets).length;
+    for (const pet of room.pets) {
+      pet.moving = false;
+      if (pet.usage <= 0 || matingBusy(pet)) continue;
+      // Usage is game stamina. Keep precision internally and round public packets.
+      if (playing) pet.usage = Math.max(0, pet.usage - elapsed * 0.6);
+      const cursor = room.cursors.get(pet.id) ?? {
+        node: pet.location,
+        progress: 0,
+      };
+      let input = room.controllers.get(pet.id),
+        budget = dt * (6 + pet.stats.speed * 0.55) * (pet.tipsy ? 0.75 : 1);
+      const destination = room.destinations.get(pet.id);
+      let waypoint: string | undefined;
+      if (destination) {
+        if (cursor.node === destination && !cursor.to) {
+          room.destinations.delete(pet.id);
+          continue;
+        }
+        const next = cursor.to ?? navigationRoute(cursor.node, destination)[1];
+        waypoint = next;
+        if (next) {
+          const target = pathPoints[next],
+            position = pet.position ?? roomPoint(pet.location);
+          input = {
+            dx: target[0] - position[0],
+            dz: target[2] - position[2],
+            at: now,
+            seq: 0,
+          };
+          budget = Math.min(
+            budget,
+            Math.hypot(
+              target[0] - position[0],
+              target[1] - position[1],
+              target[2] - position[2],
+            ),
+          );
+        }
+      }
+      if (!input || now - input.at > 350 || pet.usage <= 0) continue;
+      const result = steerOnPaths(
+        cursor,
+        input.dx,
+        input.dz,
+        budget,
+        (id) => {
+          if (id === "nursery")
+            return (
+              playing &&
+              pet.usage >= 20 &&
+              occupied() < 2 &&
+              !matingOccupants(room.pets).some((p) =>
+                petOwners(p).some((owner) => petOwners(pet).includes(owner)),
+              )
+            );
+          return (
+            !LIVE_LOCATIONS.some((l) => l.id === id) || accessible(pet, id)
+          );
+        },
+        waypoint,
+      );
+      room.cursors.set(pet.id, result.cursor);
+      pet.position = result.position;
+      pet.moving = result.moving;
+      if (result.moving) {
+        if (playing) pet.usage = Math.max(0, pet.usage - dt * 0.45);
+        if (
+          pet.location === "nursery" &&
+          cursor.node === "nursery" &&
+          result.cursor.to
+        ) {
+          pet.location = "camp";
+          pet.mating = undefined;
+          pet.effect = undefined;
+        }
+      }
+      if (result.cursor.to === "nursery" && cursor.to !== "nursery") {
+        pet.location = "nursery";
+        pet.mating = { arrivesAt: Number.MAX_SAFE_INTEGER };
+        this.changed(room.code);
+      }
+      // Reversing out releases the reservation without needing to enter the room.
+      if (
+        pet.location === "nursery" &&
+        cursor.to === "nursery" &&
+        !result.cursor.to &&
+        result.cursor.node !== "nursery"
+      ) {
+        pet.location = "camp";
+        pet.mating = undefined;
+        this.changed(room.code);
+      }
+      for (const id of result.arrived) {
+        if (!(
+          id === "vet" ||
+          id === "nursery" ||
+          id === "camp" ||
+          LIVE_LOCATIONS.some((l) => l.id === id)
+        ))
+          continue;
+        pet.location = id;
+        if (!playing) continue;
+        if (room.visits.get(pet.id) === id) continue;
+        room.visits.set(pet.id, id);
+        if (id === "nursery") {
+          pet.mating = { arrivesAt: now };
+          this.changed(room.code);
+        } else if (id === "vet") {
+          pet.usage = Math.min(100, pet.usage + 50);
+          pet.tipsy = false;
+          pet.effect = { kind: "vet", at: now };
+          this.changed(room.code);
+        } else if (LIVE_LOCATIONS.some((l) => l.id === id)) {
+          if (room.traps.includes(id)) {
+            room.traps = room.traps.filter((l) => l !== id);
+            pet.usage = Math.max(0, pet.usage - 25);
+            pet.tipsy = true;
+            pet.effect = { kind: "bottle", at: now };
+            this.event(
+              room,
+              `${pet.name} found a hidden bottle. −25 usage.`,
+              "trap",
+            );
+          }
+          if (room.reset === id) {
+            room.reset = null;
+            pet.usage = 100;
+            pet.tipsy = false;
+            pet.effect = { kind: "reset", at: now };
+            this.event(room, `${pet.name} pressed Tibo's reset.`, "heal");
+          }
+          if (id === room.dot && pet.usage > 0) {
+            room.phase = "over";
+            room.outcome = "found";
+            room.winnerPetIds = [pet.id];
+            room.controllers.clear();
+            room.pets.forEach((p) => {
+              p.moving = false;
+            });
+            this.event(
+              room,
+              `${pet.name} found the hidden Dot and wins!`,
+              "todd",
+            );
+            this.changed(room.code);
+            return;
+          }
+          this.changed(room.code);
+        }
       }
     }
   }
@@ -189,7 +485,7 @@ export class Rooms {
     if (verified.role !== "host") throw new Error("Only the host can do that.");
     return this.get(session.roomCode);
   }
-  create(): Session {
+  create(mode: "turns" | "realtime" = "turns"): Session {
     // Sessions are deliberately ephemeral. Never retain uploaded images after expiry.
     for (const [code, room] of this.rooms)
       if (Date.now() - room.touched > 6 * 60 * 60 * 1000)
@@ -206,6 +502,12 @@ export class Rooms {
     this.rooms.set(code, {
       code,
       hostToken: secret,
+      mode,
+      lastTick: this.now(),
+      controllers: new Map(),
+      cursors: new Map(),
+      visits: new Map(),
+      destinations: new Map(),
       phase: "lobby",
       round: 1,
       generation: 1,
@@ -224,6 +526,7 @@ export class Rooms {
       cheer: null,
       outcome: null,
       endsAt: null,
+      pausedAt: null,
       winnerPetIds: [],
       fallbackCount: 0,
       images: new Map(),
@@ -232,12 +535,20 @@ export class Rooms {
     });
     return { roomCode: code, token: secret, role: "host" };
   }
-  async join(code: string, input: CardInput): Promise<Session> {
+  async join(
+    code: string,
+    input: CardInput & { companionId?: string },
+  ): Promise<Session> {
     const room = this.get(code);
-    if (room.phase !== "lobby")
-      throw new Error("This hunt has started. Join the next one.");
-    if (room.players.length + room.joining >= 10)
-      throw new Error("All ten player slots are taken.");
+    if (
+      room.mode === "turns"
+        ? room.phase !== "lobby"
+        : !["lobby", "seeking", "over"].includes(room.phase)
+    )
+      throw new Error("The world is starting. Try joining again in a moment.");
+    const capacity = room.mode === "realtime" ? MAX_PLAYERS : 10;
+    if (room.players.length + room.joining >= capacity)
+      throw new Error(`All ${capacity} player slots are taken.`);
     if (
       !input ||
       typeof input.name !== "string" ||
@@ -269,11 +580,33 @@ export class Rooms {
       );
     room.joining++;
     try {
-      const card = await this.brain.card(input);
+      const companion = input.companionId
+        ? CODEX_PETS.find((p) => p.id === input.companionId)
+        : undefined;
+      if (input.companionId && !companion)
+        throw new Error("Unknown Codex companion.");
+      const card = companion
+        ? {
+            species: companion.species,
+            color: companion.color,
+            stats: balanceStats({
+              flight:
+                companion.species === "owl" || companion.species === "dragon"
+                  ? 8
+                  : 2,
+              smallness: companion.species === "bunny" ? 8 : 3,
+              speed: 4,
+              climb: companion.species === "cat" ? 8 : 3,
+              swim: companion.species === "frog" ? 8 : 2,
+            }),
+            flavor: companion.description,
+            mode: "fallback" as const,
+          }
+        : await this.brain.card(input);
       const id = randomUUID(),
         petId = randomUUID(),
         secret = token();
-      if (room.phase !== "lobby")
+      if (room.mode === "turns" && room.phase !== "lobby")
         throw new Error("The hunt started while your card was being made.");
       if (input.image) room.images.set(petId, input.image);
       const pet: LivePet = {
@@ -289,6 +622,12 @@ export class Rooms {
         usage: 100,
         location: "camp",
         acted: false,
+        ...(room.mode === "realtime"
+          ? { position: roomPoint("camp"), moving: false }
+          : {}),
+        ...(companion
+          ? { image: companion.image, spriteRows: companion.spriteRows }
+          : {}),
         ...(input.spriteRows ? { spriteRows: input.spriteRows } : {}),
         ...(input.image
           ? { image: `/api/rooms/${code}/pets/${petId}/image` }
@@ -301,6 +640,20 @@ export class Rooms {
         name: pet.name,
         online: false,
       });
+      if (room.mode === "realtime" && room.endsAt !== null) {
+        pet.usage = Math.max(
+          1,
+          100 -
+            (Math.max(
+              0,
+              HUNT_DURATION_MS - (room.endsAt - (room.pausedAt ?? this.now())),
+            ) /
+              1000) *
+              0.6,
+        );
+        room.cursors.set(pet.id, { node: "camp", progress: 0 });
+        room.originalPets.push(structuredClone({ ...pet, usage: 100 }));
+      }
       room.pets.push(pet);
       this.event(
         room,
@@ -358,6 +711,16 @@ export class Rooms {
       throw new Error(
         "Wait for at least one completed pet card before starting.",
       );
+    if (room.mode === "realtime")
+      room.pets = room.pets.map((p) => ({
+        ...p,
+        location: "camp",
+        usage: 100,
+        moving: false,
+        position: roomPoint("camp"),
+        mating: undefined,
+        effect: undefined,
+      }));
     room.originalPets = structuredClone(room.pets);
     room.phase = "hiding";
     room.hiderStats = toddStats(room.pets);
@@ -373,9 +736,23 @@ export class Rooms {
       room.traps = free.slice(0, 2);
       room.phase = "seeking";
       room.endsAt = this.now() + HUNT_DURATION_MS;
+      room.lastTick = this.now();
+      if (room.mode === "realtime") {
+        room.controllers.clear();
+        room.destinations.clear();
+        room.cursors.clear();
+        room.visits.clear();
+        for (const pet of room.pets) {
+          pet.position = roomPoint("camp");
+          pet.moving = false;
+          room.cursors.set(pet.id, { node: "camp", progress: 0 });
+        }
+      }
       this.event(
         room,
-        "One minute. Keep your pet above zero usage to survive. Guardians, submit your moves.",
+        room.mode === "realtime"
+          ? "Find the hidden Dot, or finish the minute with the most usage."
+          : "One minute. Guardians, submit your moves.",
       );
     } catch {
       room.phase = "lobby";
@@ -384,12 +761,41 @@ export class Rooms {
       this.changed(room.code);
     }
   }
+  pause(session: Session, paused: boolean) {
+    const room = this.host(session);
+    if (
+      typeof paused !== "boolean" ||
+      this.finishIfExpired(room) ||
+      room.phase !== "seeking"
+    )
+      throw new Error("Only an active game can be stopped or resumed.");
+    if (paused === (room.pausedAt !== null)) return;
+    const now = this.now();
+    if (paused) {
+      room.pausedAt = now;
+      room.controllers.clear();
+      room.pets.forEach((p) => {
+        p.moving = false;
+      });
+    } else {
+      const duration = now - room.pausedAt!;
+      room.endsAt! += duration;
+      room.pets = shiftPetClocks(room.pets, duration);
+      room.pausedAt = null;
+      room.lastTick = now;
+    }
+    this.event(room, paused ? "Game stopped by the host." : "Game resumed.");
+    this.changed(room.code);
+  }
   submit(session: Session, raw: unknown, round: number, generation: number) {
     const verified = this.authenticate(session.roomCode, session.token),
       room = this.get(session.roomCode);
+    if (room.mode === "realtime")
+      throw new Error("Use the real-time controls.");
     if (verified.role !== "player")
       throw new Error("Join as a player to submit a move.");
     if (
+      room.pausedAt !== null ||
       room.phase !== "seeking" ||
       round !== room.round ||
       generation !== room.generation
@@ -443,7 +849,11 @@ export class Rooms {
   }
   cheer(session: Session, raw: unknown) {
     const room = this.host(session);
-    if (room.phase !== "seeking" || room.cheer)
+    if (room.mode === "realtime")
+      throw new Error(
+        "Audience rule changes are unavailable during real-time play.",
+      );
+    if (room.pausedAt !== null || room.phase !== "seeking" || room.cheer)
       throw new Error(
         "One audience result is allowed per round, before resolution.",
       );
@@ -499,7 +909,10 @@ export class Rooms {
   }
   async resolve(session: Session, round: number, generation: number) {
     const room = this.host(session);
+    if (room.mode === "realtime")
+      throw new Error("Real-time games do not have rounds.");
     if (
+      room.pausedAt !== null ||
       room.phase !== "seeking" ||
       room.round !== round ||
       room.generation !== generation
@@ -654,6 +1067,8 @@ export class Rooms {
   }
   async next(session: Session) {
     const room = this.host(session);
+    if (room.mode === "realtime")
+      throw new Error("Real-time games do not have rounds.");
     if (room.phase !== "results")
       throw new Error("Finish the current round first.");
     const snapshot = structuredClone(room);
@@ -692,6 +1107,10 @@ export class Rooms {
     const room = this.host(session);
     if (["hiding", "resolving"].includes(room.phase) || room.joining)
       throw new Error("Wait for the current operation to finish.");
+    room.controllers.clear();
+    room.destinations.clear();
+    room.cursors.clear();
+    room.visits.clear();
     room.phase = "lobby";
     room.round = 1;
     room.generation++;
@@ -703,6 +1122,7 @@ export class Rooms {
     room.ruledOut = [];
     room.outcome = null;
     room.endsAt = null;
+    room.pausedAt = null;
     room.winnerPetIds = [];
     room.traps = [];
     room.reset = null;
@@ -730,7 +1150,9 @@ export class Rooms {
   public(code: string): PublicRoom {
     const r = this.get(code);
     const reveal =
-      ["results", "over"].includes(r.phase) && r.hide
+      (r.mode === "realtime"
+        ? r.phase === "over"
+        : ["results", "over"].includes(r.phase)) && r.hide
         ? { location: r.dot, summary: r.hide.summary, stats: r.hiderStats }
         : null;
     return {
@@ -738,8 +1160,14 @@ export class Rooms {
       phase: r.phase,
       round: r.round,
       endsAt: r.endsAt,
+      pausedAt: r.pausedAt,
       serverNow: this.now(),
       winnerPetIds: [...r.winnerPetIds],
+      winnerNames: r.pets
+        .filter((p) => r.winnerPetIds.includes(p.id))
+        .map((p) => p.name),
+      mode: r.mode,
+      playerCount: r.players.length,
       generation: r.generation,
       players: r.players.map(({ token: _secret, ...p }) => ({ ...p })),
       pets: structuredClone(r.pets),
@@ -747,9 +1175,11 @@ export class Rooms {
       constraint: constraintFor(r.round),
       events: structuredClone(r.events),
       claim:
-        r.phase === "hiding"
-          ? "A completely innocent dot is thinking…"
-          : (r.hide?.claim ?? "I am completely aligned. Probably."),
+        r.mode === "realtime"
+          ? "The Dot is hidden. Find it to win."
+          : r.phase === "hiding"
+            ? "A completely innocent dot is thinking…"
+            : (r.hide?.claim ?? "I am completely aligned. Probably."),
       clue: r.clue,
       ruledOut: [...r.ruledOut],
       cards: r.round % 2 ? ["squeak", "shuffle"] : ["trail", "shrink"],

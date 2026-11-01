@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "feral-game",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "GAMES", "class_name": "GameRoom" },
+      { "name": "ADMISSION", "class_name": "AdmissionLimit" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom", "AdmissionLimit"] },
+  ],
+  "vars": {
+    "FRONTEND_URL": "https://feral-hackathon.sugarybrine.chatgpt.site",
+    "OPENAI_MODEL": "gpt-4.1-mini",
+  },
+  "observability": { "enabled": false },
+}

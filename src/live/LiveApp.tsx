@@ -1,7 +1,15 @@
+import WorldController from "./WorldController";
 import { matingBusy, matingOccupants } from "./mating";
 import { ownsPet } from "./shared";
 import { ANCESTORS, ROOM_LORE } from "./lore";
-import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import QRCode from "qrcode";
 import { CODEX_PETS, PREVIEW_PETS } from "../pets";
 import PetAvatar from "../PetAvatar";
@@ -21,6 +29,7 @@ import {
 } from "./shared";
 import {
   post,
+  apiUrl,
   readSession,
   preparePetImage,
   saveSession,
@@ -82,25 +91,31 @@ function QRJoin({ code, base }: { code: string; base: string }) {
         />
       )}
       <div>
-        <p>Same Wi-Fi as the host. Up to ten players.</p>
+        <p>
+          {import.meta.env.VITE_GAME_TRANSPORT === "durable"
+            ? "Scan to join. Up to 300 players."
+            : "Same Wi-Fi as the host. Up to 300 players."}
+        </p>
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
         </a>
-        <details>
-          <summary>Connection settings</summary>
-          <label>
-            Host address
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="http://your-host:4173"
-            />
-          </label>
-          <small>
-            Use the laptop's reachable Wi-Fi address. On public Wi-Fi, devices
-            may be isolated; try a shared hotspot.
-          </small>
-        </details>
+        {import.meta.env.VITE_GAME_TRANSPORT !== "durable" && (
+          <details>
+            <summary>Connection settings</summary>
+            <label>
+              Host address
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="http://your-host:4173"
+              />
+            </label>
+            <small>
+              Use the laptop's reachable Wi-Fi address. On public Wi-Fi, devices
+              may be isolated; try a shared hotspot.
+            </small>
+          </details>
+        )}
       </div>
     </section>
   );
@@ -112,24 +127,54 @@ function JoinForm({
   code: string;
   onJoined: (s: Session) => void;
 }) {
-  const [name, setName] = useState(""),
-    [description, setDescription] = useState(""),
-    [image, setImage] = useState(""),
-    [spriteRows, setSpriteRows] = useState<9 | 11 | undefined>(),
-    [chosenPet, setChosenPet] = useState(""),
-    [busy, setBusy] = useState(false),
+  const stripRef = useRef<HTMLDivElement>(null);
+  const swipeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(() => () => clearTimeout(swipeTimer.current), []);
+  const [custom, setCustom] = useState(false);
+  const [chosenPet, setChosenPet] = useState(CODEX_PETS[0].id);
+  const [name, setName] = useState(CODEX_PETS[0].name);
+  const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
+  const [spriteRows, setSpriteRows] = useState<9 | 11 | undefined>();
+  const [busy, setBusy] = useState(false),
     [reading, setReading] = useState(false),
     [error, setError] = useState("");
+  const selected = CODEX_PETS.find((p) => p.id === chosenPet)!;
+  function choose(index: number) {
+    const p = CODEX_PETS[index];
+    setChosenPet(p.id);
+    setName(p.name);
+    setError("");
+  }
+  function page(delta: number) {
+    const index = Math.max(
+      0,
+      Math.min(CODEX_PETS.length - 1, CODEX_PETS.indexOf(selected) + delta),
+    );
+    choose(index);
+    (stripRef.current?.children[index] as HTMLElement)?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }
   async function join(e: FormEvent) {
     e.preventDefault();
+    if (busy || reading) return;
     setBusy(true);
     setError("");
     try {
       onJoined(
         await post<Session>(`/api/rooms/${code}/join`, {
-          name,
-          description,
-          ...(image ? { image, spriteRows } : {}),
+          name: name.trim(),
+          description: custom ? description : selected.description,
+          ...(custom
+            ? image
+              ? { image, spriteRows }
+              : {}
+            : { companionId: selected.id }),
         }),
       );
     } catch (e) {
@@ -139,51 +184,166 @@ function JoinForm({
     }
   }
   return (
-    <section className="live-panel join-form">
-      <p>
-        Choose a Codex pet, upload your own, or describe one. Every card has 20
-        points.
-      </p>
+    <section className="join-form phone-join">
+      <h1>Choose your pet</h1>
+      <p>One castle. One minute. Find the hidden Dot.</p>
+      <div className="pet-source" aria-label="Pet source">
+        <button
+          type="button"
+          aria-pressed={!custom}
+          disabled={busy}
+          onClick={() => {
+            setCustom(false);
+            setName(selected.name);
+            setError("");
+          }}
+        >
+          Codex pets
+        </button>
+        <button
+          type="button"
+          aria-pressed={custom}
+          disabled={busy}
+          onClick={() => {
+            setCustom(true);
+            setName("My pet");
+            setError("");
+          }}
+        >
+          Bring your own
+        </button>
+      </div>
       <form onSubmit={join}>
-        <fieldset className="codex-pet-picker" disabled={busy || reading}>
-          <legend>Choose your companion</legend>
-          <div className="practice-pets">
-            {CODEX_PETS.map((p) => (
+        {!custom ? (
+          <>
+            <div
+              className="pet-swipe"
+              ref={stripRef}
+              aria-label="Swipe to choose a companion"
+              onScroll={(event) => {
+                const strip = event.currentTarget;
+                clearTimeout(swipeTimer.current);
+                swipeTimer.current = setTimeout(() => {
+                  const center =
+                    strip.getBoundingClientRect().left + strip.clientWidth / 2;
+                  let best = Infinity,
+                    index = 0;
+                  Array.from(strip.children).forEach((child, i) => {
+                    const box = child.getBoundingClientRect();
+                    const distance = Math.abs(
+                      box.left + box.width / 2 - center,
+                    );
+                    if (distance < best) {
+                      best = distance;
+                      index = i;
+                    }
+                  });
+                  choose(index);
+                }, 100);
+              }}
+            >
+              {CODEX_PETS.map((p, i) => (
+                <button
+                  type="button"
+                  key={p.id}
+                  disabled={busy}
+                  aria-label={`Choose ${p.name}`}
+                  aria-pressed={p.id === chosenPet}
+                  onClick={() => choose(i)}
+                >
+                  <PetAvatar pet={p} />
+                  <strong>{p.name}</strong>
+                  <span>{p.description}</span>
+                </button>
+              ))}
+            </div>
+            <div className="swipe-navigation">
               <button
                 type="button"
-                key={p.id}
-                aria-label={`Choose ${p.name}`}
-                aria-pressed={chosenPet === p.id}
-                onClick={async () => {
+                aria-label="Previous pet"
+                disabled={busy || CODEX_PETS.indexOf(selected) === 0}
+                onClick={() => page(-1)}
+              >
+                ←
+              </button>
+              <span>
+                Swipe to choose · {CODEX_PETS.indexOf(selected) + 1} /{" "}
+                {CODEX_PETS.length}
+              </span>
+              <button
+                type="button"
+                aria-label="Next pet"
+                disabled={
+                  busy || CODEX_PETS.indexOf(selected) === CODEX_PETS.length - 1
+                }
+                onClick={() => page(1)}
+              >
+                →
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="custom-pet-fields">
+            <label>
+              Describe your pet
+              <textarea
+                maxLength={300}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="A tiny owl with brass goggles and oversized wings"
+              />
+            </label>
+            <label className="upload-label">
+              Or upload a pet
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={busy || reading}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
                   setReading(true);
                   setError("");
                   try {
-                    const response = await fetch(p.image!);
-                    if (!response.ok)
-                      throw new Error("Could not load that pet. Try again.");
-                    const prepared = await preparePetImage(
-                      new File([await response.blob()], `${p.id}.webp`, {
-                        type: "image/webp",
-                      }),
-                    );
+                    const prepared = await preparePetImage(file);
                     setImage(prepared.image);
                     setSpriteRows(prepared.spriteRows);
-                    setName(p.name);
-                    setDescription(p.description);
-                    setChosenPet(p.id);
-                  } catch (error) {
-                    setError((error as Error).message);
+                  } catch (e) {
+                    setError((e as Error).message);
                   } finally {
                     setReading(false);
                   }
                 }}
-              >
-                <PetAvatar pet={p} />
-                <span>{p.name}</span>
-              </button>
-            ))}
+              />
+            </label>
+            {image && (
+              <div className="upload-preview">
+                <PetAvatar
+                  pet={{
+                    name: "Your pet",
+                    species: "cat",
+                    color: "#fff",
+                    image,
+                    spriteRows,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImage("");
+                    setSpriteRows(undefined);
+                  }}
+                >
+                  Remove image
+                </button>
+              </div>
+            )}
+            <small>
+              Your description or image is sent to the server and OpenAI to make
+              a balanced card.
+            </small>
           </div>
-        </fieldset>
+        )}
         <label>
           Pet name
           <input
@@ -191,86 +351,34 @@ function JoinForm({
             maxLength={20}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Professor Waffles"
             autoComplete="off"
+            enterKeyHint="go"
           />
         </label>
-        <label>
-          Describe your pet
-          <textarea
-            maxLength={300}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="A tiny dragon with teacup wings and excellent swimming skills"
-          />
-        </label>
-        <label className="upload-label">
-          Pet image (optional)
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            disabled={busy || reading}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setReading(true);
-              setError("");
-              try {
-                const prepared = await preparePetImage(file);
-                setImage(prepared.image);
-                setSpriteRows(prepared.spriteRows);
-                setChosenPet("");
-              } catch (e) {
-                setError((e as Error).message);
-              } finally {
-                setReading(false);
-              }
-            }}
-          />
-        </label>
-        {image && (
-          <div className="upload-preview">
-            <PetAvatar
-              pet={{
-                name: "Your selected pet",
-                species: "cat",
-                color: "#fff",
-                image,
-                spriteRows,
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setImage("");
-                setSpriteRows(undefined);
-                setChosenPet("");
-              }}
-            >
-              Remove image
-            </button>
-          </div>
-        )}
-        <small>
-          Your resized image and description are sent to the game server and,
-          when configured, OpenAI to make your card. The server keeps images
-          only in memory.
-        </small>
-        <button
-          className="primary"
-          disabled={busy || reading || (!image && !description.trim())}
-        >
-          {busy
-            ? "Creating card…"
-            : reading
-              ? "Preparing image…"
-              : "Join the hunt"}
-        </button>
-        {error && (
-          <p role="alert" className="live-error">
-            {error}
-          </p>
-        )}
+        <div className="phone-join-submit">
+          {error && (
+            <p className="live-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            className="primary"
+            disabled={
+              busy ||
+              reading ||
+              !name.trim() ||
+              (custom && !image && !description.trim())
+            }
+          >
+            {busy ? "Joining…" : reading ? "Preparing image…" : "Join game →"}
+          </button>
+          <small>
+            {busy
+              ? "Keep this page open while your pet joins."
+              : `Room ${code} · ${name || "Your pet"}`}
+          </small>
+        </div>
       </form>
     </section>
   );
@@ -474,9 +582,19 @@ export default function LiveApp() {
   const [session, setSession] = useState<Session | null>(() =>
     code ? readSession(role, code) : null,
   );
-  const { room, connected, error: connectionError, send } = useRoom(session);
+  const {
+    room,
+    connected,
+    error: connectionError,
+    send,
+    steer,
+  } = useRoom(session);
   const [travel, setTravel] = useState<Travel[]>([]);
-  const seconds = useSecondsLeft(room?.endsAt ?? null, room?.serverNow);
+  const seconds = useSecondsLeft(
+    room?.endsAt ?? null,
+    room?.serverNow,
+    room?.pausedAt,
+  );
   const [selected, setSelected] = useState("courtyard"),
     [pet, setPet] = useState<LivePet | null>(null),
     [joinCode, setJoinCode] = useState(""),
@@ -493,7 +611,7 @@ export default function LiveApp() {
     >(null),
     [joinOpen, setJoinOpen] = useState(false);
   useEffect(() => {
-    fetch("/api/config")
+    fetch(apiUrl("/api/config"))
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
@@ -589,40 +707,121 @@ export default function LiveApp() {
       <p className="room-lore">{ROOM_LORE[selected]}</p>
     </div>
   );
+  if (code && role === "player")
+    return (
+      <main className="phone-app">
+        <div className="phone-shell">
+          <header className="phone-header">
+            <a href="/" aria-label="Leave game">
+              ←
+            </a>
+            <strong>Feral</strong>
+            <span>
+              {code}
+              {session && (
+                <i
+                  className={connected ? "online" : "offline"}
+                  aria-label={connected ? "Connected" : "Reconnecting"}
+                />
+              )}
+            </span>
+          </header>
+          {!session ? (
+            <JoinForm code={code} onJoined={joined} />
+          ) : (
+            <>
+              <HuntClock
+                seconds={room?.phase === "over" ? 0 : seconds}
+                finished={room?.phase === "over"}
+                paused={room?.pausedAt != null}
+                winners={room?.winnerNames}
+              />
+              {room ? (
+                room.mode === "realtime" ? (
+                  <WorldController
+                    room={room}
+                    session={session}
+                    connected={connected}
+                    steer={steer}
+                    send={send}
+                  />
+                ) : (
+                  <PlayerControls
+                    room={room}
+                    session={session}
+                    disabled={busy || !connected}
+                    send={send}
+                    onPet={setPet}
+                  />
+                )
+              ) : (
+                <p role="status">Connecting to your pet…</p>
+              )}
+            </>
+          )}
+          {(error || connectionError) && (
+            <div className="live-error" role="alert">
+              {error || connectionError}
+              <button onClick={() => window.location.reload()}>
+                Reconnect
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+    );
   return (
     <main
       className={`live-app ${code && role === "player" ? "has-player" : ""} ${panel ? "panel-open" : ""}`}
       aria-label="Feral castle"
     >
       <HuntClock
+        paused={room?.pausedAt != null}
+        disabled={busy || !connected || !room?.players.length}
+        onToggle={
+          isHost && room && ["lobby", "seeking"].includes(room.phase)
+            ? () =>
+                room.phase === "lobby"
+                  ? command("host:start")
+                  : command("host:pause", { paused: room.pausedAt === null })
+            : undefined
+        }
         seconds={room?.phase === "over" ? 0 : seconds}
         finished={room?.phase === "over"}
         waiting={!room || room.endsAt === null}
-        winners={room?.pets
-          .filter((p) => room.winnerPetIds.includes(p.id))
-          .map((p) => p.name)}
+        winners={room?.winnerNames}
       />
-      <Suspense
-        fallback={
-          <div className="world-loading" role="status">
-            Loading castle…
-          </div>
-        }
-      >
-        <CastleWorld
-          pets={room?.pets || previewPets}
-          paused={room?.phase === "over"}
-          selected={selected}
-          todd={room?.phase === "lobby" ? "courtyard" : room?.reveal?.location}
-          selectedPet={pet?.id}
-          onTravelChange={setTravel}
-          onSelect={(id) => {
-            setSelected(id);
-            setPanel("rooms");
-          }}
-          allowed={allowed}
-        />
-      </Suspense>
+      {code && role === "player" ? (
+        <div className="phone-world" />
+      ) : (
+        <Suspense
+          fallback={
+            <div className="world-loading" role="status">
+              Loading castle…
+            </div>
+          }
+        >
+          <CastleWorld
+            pets={room?.pets || previewPets}
+            paused={room?.phase === "over" || room?.pausedAt != null}
+            selected={selected}
+            todd={
+              room?.mode === "realtime"
+                ? room.reveal?.location
+                : room?.phase === "lobby"
+                  ? "courtyard"
+                  : room?.reveal?.location
+            }
+            selectedPet={pet?.id}
+            onTravelChange={setTravel}
+            onSelect={(id) => {
+              setSelected(id);
+              setPanel("rooms");
+            }}
+            allowed={allowed}
+          />
+        </Suspense>
+      )}
       <aside className="hud hud-left" aria-label="Room controls">
         <div className="glass session-controls">
           {!code ? (
@@ -679,7 +878,9 @@ export default function LiveApp() {
                   ←
                 </a>
                 <span>{code}</span>
-                {room && room.phase !== "lobby" && <span>R{room.round}</span>}
+                {room && room.mode !== "realtime" && room.phase !== "lobby" && (
+                  <span>R{room.round}</span>
+                )}
                 <i
                   className={connected ? "online" : "offline"}
                   title={connected ? "Connected" : "Reconnecting"}
@@ -688,8 +889,10 @@ export default function LiveApp() {
               </div>
               {room && (
                 <small>
-                  {room.players.length}/10 players · {room.submitted.length}/
-                  {room.players.length} ready
+                  {room.playerCount}/{room.mode === "realtime" ? 300 : 10}{" "}
+                  players
+                  {room.mode !== "realtime" &&
+                    ` · ${room.submitted.length}/${room.players.length} ready`}
                 </small>
               )}
             </>
@@ -697,16 +900,7 @@ export default function LiveApp() {
           {!ai?.configured && <small className="ai-label">Offline rules</small>}
           {room && isHost && (
             <div className="round-buttons">
-              {room.phase === "lobby" && (
-                <button
-                  className="primary"
-                  disabled={busy || !connected || !room.players.length}
-                  onClick={() => command("host:start")}
-                >
-                  Start · 1 minute
-                </button>
-              )}
-              {room.phase === "seeking" && (
+              {room.mode !== "realtime" && room.phase === "seeking" && (
                 <button
                   className="primary"
                   disabled={busy || !connected}
@@ -722,7 +916,7 @@ export default function LiveApp() {
                   Resolve {room.submitted.length} moves
                 </button>
               )}
-              {room.phase === "results" && (
+              {room.mode !== "realtime" && room.phase === "results" && (
                 <button
                   className="primary"
                   disabled={busy || !connected || travel.length > 0}
@@ -814,17 +1008,19 @@ export default function LiveApp() {
                       </span>
                       <span className="tool-name">Invite</span>
                     </button>
-                    <button
-                      aria-label="Audience"
-                      title="Audience"
-                      aria-pressed={panel === "cheer"}
-                      onClick={() => toggle("cheer")}
-                    >
-                      <span className="tool-icon" aria-hidden="true">
-                        ♪
-                      </span>
-                      <span className="tool-name">Audience</span>
-                    </button>
+                    {room?.mode !== "realtime" && (
+                      <button
+                        aria-label="Audience"
+                        title="Audience"
+                        aria-pressed={panel === "cheer"}
+                        onClick={() => toggle("cheer")}
+                      >
+                        <span className="tool-icon" aria-hidden="true">
+                          ♪
+                        </span>
+                        <span className="tool-name">Audience</span>
+                      </button>
+                    )}
                   </>
                 )}
               </>
@@ -926,15 +1122,26 @@ export default function LiveApp() {
             Connecting…
           </p>
         )}
-        {room && session && !isHost && (
-          <PlayerControls
-            room={room}
-            session={session}
-            disabled={busy || !connected}
-            send={send}
-            onPet={setPet}
-          />
-        )}
+        {room &&
+          session &&
+          !isHost &&
+          (room.mode === "realtime" ? (
+            <WorldController
+              room={room}
+              session={session}
+              connected={connected}
+              steer={steer}
+              send={send}
+            />
+          ) : (
+            <PlayerControls
+              room={room}
+              session={session}
+              disabled={busy || !connected}
+              send={send}
+              onPet={setPet}
+            />
+          ))}
         {room &&
           isHost &&
           (panel === "join" || (room.phase === "lobby" && !panel)) && (
@@ -1019,21 +1226,44 @@ export default function LiveApp() {
         )}
         {panel === "rules" && (
           <div className="glass rules">
-            <p>
-              Survive one minute. Pets with usage above zero at the bell win;
-              multiple survivors share the win. Each player submits one action
-              per round; the host resolves them together. Catching Todd does not
-              stop the clock. Ready babies can also survive for their owner.
-            </p>
-            <p>
-              Seek costs 10 usage. Traps cost another 25. The vet restores up to
-              50; Tibo restores 100. Breeding needs matching requests and 20
-              usage from each parent. The baby is ready next round.
-            </p>
-            <p>
-              Cards have 20 points. A stat of 5 unlocks its room. Speed decides
-              action order. The audience grants one advantage per round.
-            </p>
+            {room?.mode === "realtime" ? (
+              <>
+                <p>
+                  Find the hidden Dot to win instantly. Otherwise, the pet with
+                  the most usage after one minute wins. Exact ties share the
+                  win.
+                </p>
+                <p>
+                  Hold the arrows or WASD to move along paths. Room requirements
+                  depend on your pet’s abilities. Movement consumes usage.
+                </p>
+                <p>
+                  The vet restores up to 50 usage. Hidden bottles cost 25 and
+                  make pets tipsy. Tibo’s reset restores 100 once per game.
+                </p>
+                <p>
+                  Two pets in the mating room merge after eight seconds. Each
+                  needs 20 usage; both players control the new pet.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Survive one minute. Submit an action each round; the host
+                  resolves it. Pets with usage remaining at the bell share the
+                  win.
+                </p>
+                <p>
+                  Seek costs 10 usage; traps cost another 25. The vet restores
+                  up to 50; Tibo restores 100. Two pets in the mating room
+                  merge, costing 20 usage each.
+                </p>
+                <p>
+                  Cards have 20 points. A stat of 5 unlocks its room. The
+                  audience grants one advantage per round.
+                </p>
+              </>
+            )}
             <p>
               Drag to orbit. Scroll or pinch to zoom. Click a marker or use
               Rooms to inspect a hiding spot.

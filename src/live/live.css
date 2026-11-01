@@ -1394,3 +1394,581 @@
   width: 40px;
   height: 44px;
 }
+
+.world-controller {
+  width: min(320px, calc(100vw - 28px));
+}
+.controller-pet {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.controller-pet .pet-avatar {
+  width: 60px;
+  height: 64px;
+}
+.controller-pet strong,
+.controller-pet small {
+  display: block;
+}
+.controller-map {
+  width: 100%;
+  height: 150px;
+  color: #b5c0ac;
+  border: 1px solid #ffffff18;
+  border-radius: 12px;
+  background: #0e1f1955;
+}
+.direction-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(2, 64px);
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0;
+  touch-action: none;
+}
+.direction-pad button {
+  touch-action: none;
+  user-select: none;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #e6e8d917;
+  border: 1px solid #d4dfca55;
+  border-radius: 14px;
+}
+.direction-pad button span {
+  font-size: 29px;
+  line-height: 1;
+}
+.direction-pad kbd {
+  font-size: 10px;
+  opacity: 0.65;
+}
+.direction-north {
+  grid-column: 2;
+}
+.direction-west {
+  grid-column: 1;
+  grid-row: 2;
+}
+.direction-south {
+  grid-column: 2;
+  grid-row: 2;
+}
+.direction-east {
+  grid-column: 3;
+  grid-row: 2;
+}
+.direction-pad button[aria-pressed="true"] {
+  background: #d4c28c55;
+  border-color: #e9d79f;
+}
+.phone-world {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, #263f34, #101e19 80%);
+}
+.pet-swipe {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 12px;
+  scrollbar-width: thin;
+  padding: 6px 2px 12px;
+}
+.pet-swipe button {
+  flex: 0 0 78%;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+.pet-swipe .pet-avatar {
+  width: 90px !important;
+  height: 98px !important;
+}
+.pet-swipe span {
+  white-space: normal;
+}
+@media (max-width: 700px) {
+  .has-player .hud-right:has(.world-controller) {
+    top: 90px;
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
+    max-height: calc(100dvh - 102px);
+  }
+  .has-player .world-controller {
+    width: auto;
+  }
+  .controller-map {
+    height: 125px;
+  }
+}
+
+/* A fixed sprite and label slot prevents long pet names from changing row height. */
+.practice-controls {
+  width: 248px;
+}
+.practice-actions {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.practice-actions .back-link {
+  width: 32px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+.practice-actions button {
+  min-height: 40px;
+  margin: 0;
+  padding: 8px;
+}
+.practice-pets {
+  gap: 6px;
+  align-items: stretch;
+}
+.practice-pets > button {
+  display: grid;
+  grid-template-rows: 44px 26px;
+  align-items: center;
+  justify-items: center;
+  padding: 5px 2px;
+  min-width: 0;
+  height: 82px;
+  overflow: hidden;
+}
+.practice-pets .pet-avatar {
+  width: 40px;
+  height: 44px;
+  object-fit: contain;
+}
+.practice-pets > button > span:last-child {
+  width: 100%;
+  height: 26px;
+  font-size: 10px;
+  line-height: 13px;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-wrap: anywhere;
+}
+.practice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.practice-card strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.practice-card > span {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .practice-controls {
+    width: 164px;
+  }
+  .practice-pets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .practice-pets > button {
+    height: 74px;
+    grid-template-rows: 36px 26px;
+  }
+  .practice-pets .pet-avatar {
+    width: 33px;
+    height: 36px;
+  }
+}
+
+.care-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.care-shortcuts button {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.clock-toggle {
+  pointer-events: auto;
+  display: block;
+  margin: 8px auto 0;
+  min-width: 88px;
+  padding: 7px 18px;
+  border: 1px solid #e6d9ad55;
+  border-radius: 30px;
+  background: #13241b88;
+  backdrop-filter: blur(14px);
+  color: inherit;
+  font-size: 13px;
+}
+
+/* Phones have one readable document, not the big-screen overlay arrangement. */
+.phone-app {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: radial-gradient(ellipse at 50% 0%, #294438, #10221b 70%);
+  color: #f3efe0;
+  font-family: inherit;
+}
+.phone-app * {
+  box-sizing: border-box;
+}
+.phone-shell {
+  max-width: 460px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 20px
+    max(22px, env(safe-area-inset-bottom));
+}
+.phone-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 40px;
+  margin-bottom: 20px;
+}
+.phone-header a {
+  color: inherit;
+  text-decoration: none;
+  padding: 8px;
+  margin-left: -8px;
+}
+.phone-header strong {
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+.phone-header > span {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font:
+    12px ui-monospace,
+    monospace;
+  color: #b4c3b8;
+}
+.phone-app button,
+.phone-app input,
+.phone-app textarea,
+.phone-app select {
+  font: inherit;
+}
+.phone-app button {
+  color: inherit;
+  border: 1px solid #d4dfc333;
+  border-radius: 13px;
+  background: #ffffff08;
+  min-height: 46px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.phone-app button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.phone-app button.primary {
+  background: #ead7a1;
+  color: #17271e;
+  border-color: #ead7a1;
+  font-weight: 650;
+}
+.phone-app input,
+.phone-app textarea,
+.phone-app select {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  color: #fff8e7;
+  background: #12271e;
+  border: 1px solid #afc5ac55;
+  border-radius: 12px;
+  min-height: 48px;
+  font-size: 16px;
+}
+.phone-app textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.phone-app label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: #c5d2c7;
+}
+.phone-app small {
+  color: #acbfb0;
+  line-height: 1.45;
+}
+.phone-app .phone-join {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.phone-join h1 {
+  font-size: 30px;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+  margin: 10px 0;
+}
+.phone-join > p {
+  font-size: 14px;
+  color: #b7c7ba;
+  margin: 0 0 22px;
+}
+.pet-source {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 15px;
+  background: #071b1466;
+}
+.pet-source button {
+  border: 0;
+  min-height: 40px;
+  font-size: 14px;
+}
+.pet-source button[aria-pressed="true"] {
+  background: #edf0d51a;
+  color: #f8e9bf;
+}
+.phone-join form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.phone-app .pet-swipe {
+  margin-top: 18px;
+  padding: 0;
+  gap: 12px;
+  scrollbar-width: none;
+}
+.phone-app .pet-swipe > button {
+  flex-basis: 100%;
+  min-height: 224px;
+  border-color: #e7d5a533;
+  background: radial-gradient(ellipse, #5f765140, #142a2050);
+  gap: 6px;
+  padding: 16px 26px;
+}
+.phone-app .pet-swipe > button[aria-pressed="true"] {
+  border-color: #e7d5a57a;
+}
+.phone-app .pet-swipe .pet-avatar {
+  width: 112px !important;
+  height: 118px !important;
+}
+.phone-app .pet-swipe strong {
+  font-size: 22px;
+}
+.phone-app .pet-swipe span {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #b9c9bd;
+}
+.swipe-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -7px;
+}
+.swipe-navigation span {
+  font-size: 12px;
+  color: #b4c7b7;
+}
+.swipe-navigation button {
+  width: 46px;
+}
+.custom-pet-fields {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+}
+.phone-join-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 16px 0 max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, #10221b 15%);
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+.phone-join-submit > button {
+  width: 100%;
+  min-height: 54px;
+  font-size: 17px;
+}
+.phone-app .hunt-clock {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  width: 100%;
+  margin: -8px 0 20px;
+}
+.phone-app .clock-digits {
+  font-size: 56px;
+}
+.phone-app .clock-result {
+  margin-top: 8px;
+  max-height: 160px;
+}
+.phone-app .world-controller {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.phone-app .controller-pet {
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.phone-app .controller-pet .pet-avatar {
+  width: 60px;
+  height: 66px;
+}
+.phone-app .controller-pet strong {
+  font-size: 22px;
+}
+.phone-app .world-controller progress {
+  height: 8px;
+  margin-bottom: 8px;
+}
+.phone-app .controller-map {
+  height: 132px;
+  width: 100%;
+  margin: 12px 0 8px;
+  background: #071a1255;
+  border: 1px solid #c2d2b51f;
+  border-radius: 14px;
+}
+.phone-app .direction-pad {
+  grid-template-columns: repeat(3, 72px);
+  grid-template-rows: repeat(2, 64px);
+  gap: 8px;
+  margin: 10px auto 18px;
+}
+.phone-app .direction-pad button {
+  min-height: 64px;
+  touch-action: none;
+  user-select: none;
+}
+.phone-app .direction-pad button[aria-pressed="true"] {
+  background: #ead7a1;
+  color: #17271e;
+}
+.phone-app .care-shortcuts {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.phone-app .care-shortcuts button {
+  min-height: 50px;
+}
+.phone-app .world-controller > small[role="status"] {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  padding-bottom: 10px;
+}
+.phone-app .live-error {
+  display: grid;
+  gap: 8px;
+  color: #ffc9b3;
+  font-size: 14px;
+}
+@media (max-height: 720px) {
+  .phone-shell {
+    padding-top: 10px;
+  }
+  .phone-header {
+    margin-bottom: 12px;
+  }
+  .phone-app .pet-swipe > button {
+    min-height: 180px;
+    padding: 10px 22px;
+  }
+  .phone-app .pet-swipe .pet-avatar {
+    width: 84px !important;
+    height: 92px !important;
+  }
+  .phone-join h1 {
+    font-size: 26px;
+  }
+  .phone-join > p {
+    margin-bottom: 14px;
+  }
+  .phone-app .controller-map {
+    height: 96px;
+  }
+  .phone-app .clock-digits {
+    font-size: 44px;
+  }
+}
+.phone-app {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.phone-app .world-controller progress {
+  display: block;
+  width: 100%;
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #d2debf24;
+}
+.phone-app .world-controller progress::-webkit-progress-bar {
+  background: #d2debf24;
+  border-radius: 8px;
+}
+.phone-app .world-controller progress::-webkit-progress-value {
+  background: #e7d29a;
+  border-radius: 8px;
+}
+.phone-app .world-controller progress::-moz-progress-bar {
+  background: #e7d29a;
+  border-radius: 8px;
+}
+.phone-app .world-controller > small {
+  display: block;
+}
+.phone-app .direction-pad button > span {
+  font:
+    30px/1 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+.phone-app .direction-pad kbd {
+  font:
+    11px/1 ui-monospace,
+    monospace;
+}

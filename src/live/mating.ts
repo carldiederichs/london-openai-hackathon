@@ -100,3 +100,22 @@ export function advanceMating(
   };
   return [...pets.filter((p) => !pair.includes(p)), child];
 }
+
+// Preserve unfinished arrival, animation and merge deadlines across a stopped game.
+export function shiftPetClocks(pets: LivePet[], duration: number): LivePet[] {
+  return pets.map((p) => ({
+    ...p,
+    effect: p.effect ? { ...p.effect, at: p.effect.at + duration } : undefined,
+    mating: p.mating
+      ? {
+          arrivesAt:
+            p.mating.arrivesAt === Number.MAX_SAFE_INTEGER
+              ? p.mating.arrivesAt
+              : p.mating.arrivesAt + duration,
+          ...(p.mating.finishesAt === undefined
+            ? {}
+            : { finishesAt: p.mating.finishesAt + duration }),
+        }
+      : undefined,
+  }));
+}

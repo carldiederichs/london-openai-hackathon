@@ -66,6 +66,8 @@ export const LIVE_LOCATIONS = LOCATIONS;
 export type LivePet = Pet & {
   ownerId: string;
   coOwnerIds?: string[];
+  position?: [number, number, number];
+  moving?: boolean;
   mating?: { arrivesAt: number; finishesAt?: number };
   stats: Stats;
   flavor: string;
@@ -153,12 +155,16 @@ export type LiveEvent = {
   mode?: "ai" | "fallback";
 };
 export type PublicRoom = {
+  mode: "turns" | "realtime";
+  playerCount: number;
   code: string;
   phase: Phase;
   round: number;
   endsAt: number | null;
+  pausedAt: number | null;
   serverNow: number;
   winnerPetIds: string[];
+  winnerNames: string[];
   players: Player[];
   pets: LivePet[];
   submitted: string[];
@@ -169,7 +175,7 @@ export type PublicRoom = {
   ruledOut: string[];
   cards: AdvantageId[];
   cheer: CheerResult | null;
-  outcome: "survived" | null;
+  outcome: "survived" | "found" | null;
   reveal: { location: string; summary: string; stats: Stats } | null;
   ai: { configured: boolean; model: string; fallbackCount: number };
   generation: number;
@@ -268,3 +274,10 @@ export const petOwners = (pet: LivePet): string[] => [
 ];
 export const ownsPet = (pet: LivePet, playerId?: string): boolean =>
   !!playerId && petOwners(pet).includes(playerId);
+
+export type MotionFrame = {
+  generation: number;
+  serverNow: number;
+  pets: Pick<LivePet, "id" | "position" | "moving" | "location" | "usage">[];
+};
+export const MAX_PLAYERS = 300;

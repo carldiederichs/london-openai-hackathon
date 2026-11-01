@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import type { PublicRoom, Reply, Session } from "./shared";
+import { DurableConnection } from "./durable-client";
+export const GAME_BACKEND = (import.meta.env.VITE_GAME_BACKEND || "").replace(
+  /\/$/,
+  "",
+);
+export const apiUrl = (path: string) => GAME_BACKEND + path;
+import type { PublicRoom, Reply, Session, MotionFrame } from "./shared";
 
 export async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -39,13 +45,17 @@ export function useRoom(session: Session | null) {
   const [room, setRoom] = useState<PublicRoom | null>(null),
     [connected, setConnected] = useState(false),
     [error, setError] = useState("");
-  const socket = useRef<Socket | null>(null);
+  const socket = useRef<Socket | DurableConnection | null>(null);
   useEffect(() => {
     if (!session) return;
-    const s = io({
-      auth: { code: session.roomCode, token: session.token },
-      reconnection: true,
-    });
+    const s =
+      import.meta.env.VITE_GAME_TRANSPORT === "durable"
+        ? new DurableConnection(GAME_BACKEND, session)
+        : io(GAME_BACKEND || undefined, {
+            auth: { code: session.roomCode, token: session.token },
+            reconnection: true,
+            transports: ["websocket"],
+          });
     socket.current = s;
     s.on("connect", () => {
       setConnected(true);
@@ -56,7 +66,32 @@ export function useRoom(session: Session | null) {
       setConnected(false);
       setError(e.message);
     });
-    s.on("room:state", (state: PublicRoom) => setRoom(state));
+    s.on("room:state", (state: PublicRoom) =>
+      setRoom({
+        ...state,
+        pets: state.pets.map((p) => ({
+          ...p,
+          image: p.image?.startsWith("/api/") ? apiUrl(p.image) : p.image,
+        })),
+      }),
+    );
+    s.on("room:motion", (frame: MotionFrame) =>
+      setRoom((current) => {
+        if (
+          !current ||
+          current.generation !== frame.generation ||
+          !["lobby", "seeking"].includes(current.phase)
+        )
+          return current;
+        const updates = new Map(frame.pets.map((p) => [p.id, p]));
+        return {
+          ...current,
+          pets: current.pets.map((p) =>
+            updates.has(p.id) ? { ...p, ...updates.get(p.id) } : p,
+          ),
+        };
+      }),
+    );
     return () => {
       s.disconnect();
       socket.current = null;
@@ -72,7 +107,16 @@ export function useRoom(session: Session | null) {
       .emitWithAck(event, data);
     if (!reply.ok) throw new Error(reply.error);
   }
-  return { room, connected, error, send };
+  const sequence = useRef(0);
+  function steer(dx: number, dz: number, generation: number) {
+    socket.current?.volatile.emit("player:steer", {
+      dx,
+      dz,
+      generation,
+      seq: ++sequence.current,
+    });
+  }
+  return { room, connected, error, send, steer };
 }
 export async function preparePetImage(
   file: File,

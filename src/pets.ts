@@ -8,6 +8,8 @@ export type Pet = {
   usage: number;
   location: string;
   acted: boolean;
+  position?: [number, number, number];
+  moving?: boolean;
   image?: string;
   /** Codex atlas: 8 columns; 9 standard rows or 11 including look directions. */
   spriteRows?: 9 | 11;
@@ -277,30 +279,6 @@ export const LOCATIONS: Location[] = [
     region: "south",
   },
 ];
-const STARTERS: Array<[string, Species, string]> = [
-  ["Pip", "cat", "#e7a968"],
-  ["Nimbus", "owl", "#aeabd6"],
-  ["Mochi", "bunny", "#efbbc3"],
-  ["Byte", "frog", "#a8c58b"],
-  ["Boo", "ghost", "#b4d6d1"],
-  ["Waffle", "dog", "#c5a07f"],
-  ["Ember", "dragon", "#d1a3a4"],
-  ["Gizmo", "robot", "#9fbdcf"],
-  ["Clover", "bunny", "#d3c79a"],
-  ["Pixel", "cat", "#b9bdcd"],
-];
-export const PREVIEW_PETS: Pet[] = STARTERS.map(
-  ([name, species, color], i) => ({
-    id: `preview-${i}`,
-    name,
-    species,
-    color,
-    usage: 100,
-    location: "camp",
-    acted: false,
-  }),
-);
-
 // Species are game ability archetypes; artwork and names retain the real pet identity.
 const CODEX_STARTERS: Array<[string, string, Species, string, string, 9 | 11]> =
   [
@@ -399,3 +377,5 @@ export const CODEX_PETS: (Pet & { description: string })[] = CODEX_STARTERS.map(
     acted: false,
   }),
 );
+
+export const PREVIEW_PETS: Pet[] = CODEX_PETS;
