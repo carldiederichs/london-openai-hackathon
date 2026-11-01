@@ -157,3 +157,12 @@ Owen PR #3 at `756652f` supplied the Sites-managed Worker/D1 hosting pattern. Th
 - Initial crowd run failed 196 requests: every phone competed to update the world, overloading the emulator. The fix combines input/authorization/view access into one indexed statement and leaves normal ticks to the host. A phone can advance the simulation when the host's state becomes stale. The repeat above passed.
 - Browser: phone joined, controls locked before Start, matching 0:39 host/phone clocks, movement input, Stop at 0:35, refresh preserving the stopped deadline, Resume, and path-following vet arrival with usage restoration. 390px phone layout inspected. Full final-publication and further repeated-game checks remain pending.
 - A pre-existing rollback test compared wall-clock `serverNow` across two calls and intermittently failed by 1 ms. It now excludes only that clock field while comparing the complete retained game state.
+
+
+### Public Sites-only verification (version 2)
+
+Published to the existing Feral URL on 1 November 2026. Health reports `transport: sites`; configuration reports server-side AI enabled. Sites version 2, source `eb4472c9d7cc57a0b1a2b15b9274ebce5faa3254`, deployment `appgdep_6ae775581eb48191864437d6881d1e23` succeeded. The standalone Cloudflare backend is no longer used by this frontend.
+
+Public HTTP stress check: 300 players plus host, 43,841 ms admission in batches of 20; at least five responses/client during 12 seconds; zero failed requests; Stop/Resume passed. Median latency was 1,670 ms and p95 2,814 ms. This exposed crowd latency despite successful requests, so the next update reduces ordinary phone polling and avoids competing simulation ticks while the host is active. These measurements must not be presented as smooth 300-phone gameplay.
+
+A separate public nine-player game assigned one private traitor, completed a collision ban, moved the browser-controlled Dewey to the graveyard with zero usage, and ended normally. At 390px, the phone visibly showed “Banned for distillation”, “Your pet is dead”, Pet Memorials, and disabled movement/care controls. Two complete local browser games additionally covered steering, timer pause/resume/reconnect, vet recovery, original-pet restart and the Dewey–Fireball shared-pet merge through the final winner screen.

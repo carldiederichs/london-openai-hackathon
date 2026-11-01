@@ -71,7 +71,7 @@ await Promise.all(
       } catch (e) {
         failures.push(String(e));
       }
-      await sleep(100);
+      await sleep(index ? 200 : 100);
     }
   }),
 );

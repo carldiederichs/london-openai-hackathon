@@ -2005,3 +2005,8 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* The live host needs one scan target, not a navigation dashboard. */
+.qr-only { width: fit-content; padding: 12px; }
+.qr-only a, .qr-only img { display: block; }
+.qr-only img { width: 160px; max-width: 100%; height: auto; aspect-ratio: 1; border-radius: 6px; }

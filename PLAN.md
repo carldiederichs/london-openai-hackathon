@@ -3,6 +3,7 @@
 Authoritative checklist. Latest instructions: full-screen Ardross-inspired 3D castle;
 transparent glass UI at the left and right, with a top-centre one-minute clock; remove titles/branding/dashboard
 clutter and delete the 2D prototype. Push verified milestones directly to main.
+Publish every completed change to the same public Feral Site and verify its deployment; a Git push alone does not complete the task.
 Do not interact with Notion. Microphone hardware testing is reserved for the user.
 
 ## Verified milestones
@@ -242,3 +243,5 @@ Owen's updated draft PR #3 (`756652f`) is available. His Sites Worker + D1 appro
 - [ ] Verify mobile rendering and crowd transport separately; report hosted capacity evidence accurately.
 - [x] Update README and demo with Sites-only operation; publication status and transport-specific verification remain explicit.
 - [ ] Push main, publish the selected Feral Site, verify its actual public game, and save a sanitized local checkpoint. Keep the old backend available until the replacement passes.
+
+- [x] Replace the live host Menu and tabs with a single QR code; timer controls remain. Local render inspected; public verification is part of the final publication item.

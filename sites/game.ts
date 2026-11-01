@@ -295,7 +295,7 @@ export async function gameApi(request: Request, env: Env): Promise<Response> {
     const session: Session = JSON.parse(auth.session);
     if (operation === "sync") {
       const cached = JSON.parse(auth.view);
-      if (session.role === "host" || Date.now() - cached.serverNow > 600) {
+      if (session.role === "host" || Date.now() - cached.serverNow > 5000) {
         await mutate(env, code);
         const row = await env.DB.prepare(
           "SELECT view FROM feral_sessions WHERE room=? AND token=?",

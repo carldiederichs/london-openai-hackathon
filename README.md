@@ -8,7 +8,7 @@ Built for the London OpenAI hackathon, Feral supports rooms of up to **300 playe
 
 Open [Feral](https://feral-hackathon.sugarybrine.chatgpt.site) on the big screen, create a room, and let players scan its QR code. No laptop server or shared Wi-Fi is needed for the published game; each device needs internet access. The host starts, stops and resumes the shared one-minute timer.
 
-**Migration status:** the Sites-only transport below is being verified. The last verified public release still uses the separate Durable Object backend until the replacement is published.
+The public Site now runs the Sites-managed backend described below. Create a **fresh room** after the migration: room codes from the earlier standalone backend do not transfer. Updates within the Sites backend preserve its stored rooms.
 
 ## Start Feral locally
 
@@ -54,13 +54,13 @@ Practice is local to the tab and makes no model calls. It uses discrete moves co
 
 ## Castle and controls
 
-The castle fills the host viewport, with glass controls at the sides and a large countdown at the top centre. Drag to orbit, right-drag to pan, and scroll or pinch to zoom. Click a light ring to select a destination; hover to inspect its access rules. **Rooms** provides searchable, keyboard-accessible destinations. The **··· camera menu** contains zoom, Follow pet and Reset view. **Simple view** stops 3D rendering while keeping controls available; WebGL failures use the same fallback.
+The castle fills the host viewport, with glass controls at the sides and a large countdown at the top centre. Drag to orbit, right-drag to pan, and scroll or pinch to zoom. Click a light ring to select a destination; hover to inspect its access rules. Clicking a room opens its details. The live host’s side panel keeps a single, clickable QR code instead of the Rooms/Petdex/Log/Invite/Rules menu. The **··· camera menu** contains zoom, Follow pet and Reset view. **Simple view** stops 3D rendering while keeping controls available; WebGL failures use the same fallback.
 
 When a pet enters the mansion, the upper castle lifts and fades to reveal the rooms. **Look inside** previews this cutaway without moving a pet. Pet and roof animations respect reduced-motion preferences. The phone controller does not render the full 3D castle.
 
 The estate has **42 hiding places, including 26 furnished rooms on one playable ground floor**. Four connected sandstone ranges surround a fountain courtyard. Upper windows and towers are exterior decoration; no floor switching is needed. The grounds include a lake, boathouse, orchard, glasshouse, pavilion, OpenAI-knot hedge maze, pet graveyard and Ivory Tower. The crypt and dark rooms remain part of the same playable map.
 
-Room details include kitchen pots, dining settings, musical instruments, an observatory telescope, laboratory bottles, server lights, chapel candles and nursery bedding. Garden lanterns light the paths. Sixteen fictional pixel-pet ancestor portraits hang throughout the mansion. **Petdex** shows cards, traits, lineage and reachable places, plus a link to the external Petdex gallery; it does not install or download pets automatically.
+Room details include kitchen pots, dining settings, musical instruments, an observatory telescope, laboratory bottles, server lights, chapel candles and nursery bedding. Garden lanterns light the paths. Sixteen fictional pixel-pet ancestor portraits hang throughout the mansion. The earlier Petdex panel remains in the source for the legacy flow, but is removed from the live host menu to keep the screen focused on the castle and QR code.
 
 Static room props are batched, sprite images are shared, and crowded scenes reduce labels and use sprite artwork for pets without uploaded images. Real-time positions come from the server and interpolate on the host. See [movement notes](docs/MOVEMENT.md) for the route graph and earlier movement milestones. The old 2D prototype has been removed.
 

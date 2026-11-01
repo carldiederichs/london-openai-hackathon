@@ -60,7 +60,15 @@ function StatsCard({ stats }: { stats: Stats }) {
     </div>
   );
 }
-function QRJoin({ code, base }: { code: string; base: string }) {
+function QRJoin({
+  code,
+  base,
+  compact = false,
+}: {
+  code: string;
+  base: string;
+  compact?: boolean;
+}) {
   const [qr, setQr] = useState(""),
     [address, setAddress] = useState(base || window.location.origin);
   const url = `${address.replace(/\/$/, "")}/play/${code}`;
@@ -80,6 +88,24 @@ function QRJoin({ code, base }: { code: string; base: string }) {
       alive = false;
     };
   }, [url]);
+  if (compact)
+    return qr ? (
+      <section className="glass qr-only" aria-label="Scan to join">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Join room ${code}`}
+        >
+          <img
+            src={qr}
+            alt={`Scan to join room ${code}`}
+            width="160"
+            height="160"
+          />
+        </a>
+      </section>
+    ) : null;
   return (
     <section className="live-panel join-panel">
       {qr && (
@@ -99,7 +125,9 @@ function QRJoin({ code, base }: { code: string; base: string }) {
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
         </a>
-        {!["durable", "sites"].includes(import.meta.env.VITE_GAME_TRANSPORT) && (
+        {!["durable", "sites"].includes(
+          import.meta.env.VITE_GAME_TRANSPORT,
+        ) && (
           <details>
             <summary>Connection settings</summary>
             <label>
@@ -957,87 +985,91 @@ export default function LiveApp() {
             </div>
           )}
         </div>
-        <details className="glass utility-menu">
-          <summary>Menu</summary>
-          <nav className="side-tools" aria-label="Game panels">
-            <button
-              aria-label="Rooms"
-              title="Rooms"
-              aria-pressed={panel === "rooms"}
-              onClick={() => toggle("rooms")}
-            >
-              <span className="tool-icon" aria-hidden="true">
-                ◇
-              </span>
-              <span className="tool-name">Rooms</span>
-            </button>
-            {room && (
-              <>
-                <button
-                  aria-label="Petdex"
-                  title="Petdex"
-                  aria-pressed={panel === "players"}
-                  onClick={() => toggle("players")}
-                >
-                  <span className="tool-icon" aria-hidden="true">
-                    ♟
-                  </span>
-                  <span className="tool-name">Petdex</span>
-                </button>
-                <button
-                  aria-label="Log"
-                  title="Log"
-                  aria-pressed={panel === "log"}
-                  onClick={() => toggle("log")}
-                >
-                  <span className="tool-icon" aria-hidden="true">
-                    ≡
-                  </span>
-                  <span className="tool-name">Log</span>
-                </button>
-                {isHost && (
-                  <>
-                    <button
-                      aria-label="Invite"
-                      title="Invite"
-                      aria-pressed={panel === "join"}
-                      onClick={() => toggle("join")}
-                    >
-                      <span className="tool-icon" aria-hidden="true">
-                        +
-                      </span>
-                      <span className="tool-name">Invite</span>
-                    </button>
-                    {room?.mode !== "realtime" && (
+        {room && isHost && room.mode === "realtime" ? (
+          <QRJoin code={room.code} base={config?.joinBase || ""} compact />
+        ) : (
+          <details className="glass utility-menu">
+            <summary>Menu</summary>
+            <nav className="side-tools" aria-label="Game panels">
+              <button
+                aria-label="Rooms"
+                title="Rooms"
+                aria-pressed={panel === "rooms"}
+                onClick={() => toggle("rooms")}
+              >
+                <span className="tool-icon" aria-hidden="true">
+                  ◇
+                </span>
+                <span className="tool-name">Rooms</span>
+              </button>
+              {room && (
+                <>
+                  <button
+                    aria-label="Petdex"
+                    title="Petdex"
+                    aria-pressed={panel === "players"}
+                    onClick={() => toggle("players")}
+                  >
+                    <span className="tool-icon" aria-hidden="true">
+                      ♟
+                    </span>
+                    <span className="tool-name">Petdex</span>
+                  </button>
+                  <button
+                    aria-label="Log"
+                    title="Log"
+                    aria-pressed={panel === "log"}
+                    onClick={() => toggle("log")}
+                  >
+                    <span className="tool-icon" aria-hidden="true">
+                      ≡
+                    </span>
+                    <span className="tool-name">Log</span>
+                  </button>
+                  {isHost && (
+                    <>
                       <button
-                        aria-label="Audience"
-                        title="Audience"
-                        aria-pressed={panel === "cheer"}
-                        onClick={() => toggle("cheer")}
+                        aria-label="Invite"
+                        title="Invite"
+                        aria-pressed={panel === "join"}
+                        onClick={() => toggle("join")}
                       >
                         <span className="tool-icon" aria-hidden="true">
-                          ♪
+                          +
                         </span>
-                        <span className="tool-name">Audience</span>
+                        <span className="tool-name">Invite</span>
                       </button>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-            <button
-              aria-label="Rules"
-              title="Rules"
-              aria-pressed={panel === "rules"}
-              onClick={() => toggle("rules")}
-            >
-              <span className="tool-icon" aria-hidden="true">
-                ?
-              </span>
-              <span className="tool-name">Rules</span>
-            </button>
-          </nav>
-        </details>
+                      {room?.mode !== "realtime" && (
+                        <button
+                          aria-label="Audience"
+                          title="Audience"
+                          aria-pressed={panel === "cheer"}
+                          onClick={() => toggle("cheer")}
+                        >
+                          <span className="tool-icon" aria-hidden="true">
+                            ♪
+                          </span>
+                          <span className="tool-name">Audience</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+              <button
+                aria-label="Rules"
+                title="Rules"
+                aria-pressed={panel === "rules"}
+                onClick={() => toggle("rules")}
+              >
+                <span className="tool-icon" aria-hidden="true">
+                  ?
+                </span>
+                <span className="tool-name">Rules</span>
+              </button>
+            </nav>
+          </details>
+        )}
         {panel === "rooms" && roomMenu}
         {confirm && (
           <div className="glass confirm-panel" role="alert">
@@ -1144,6 +1176,7 @@ export default function LiveApp() {
           ))}
         {room &&
           isHost &&
+          room.mode !== "realtime" &&
           (panel === "join" || (room.phase === "lobby" && !panel)) && (
             <QRJoin code={room.code} base={joinBase} />
           )}

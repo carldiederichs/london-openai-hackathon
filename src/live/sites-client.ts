@@ -59,12 +59,25 @@ export class SitesConnection {
       this.dispatch("connect_error", error);
     } finally {
       if (!this.stopped)
-        this.timer = setTimeout(() => this.poll(), this.connected ? 100 : 1000);
+        this.timer = setTimeout(
+          () => this.poll(),
+          this.connected ? (this.session.role === "host" ? 100 : 200) : 1000,
+        );
     }
   }
   volatile = {
     emit: (_event: string, data: unknown) => {
+      const previous = this.input as { dx?: number; dz?: number } | undefined;
+      const next = data as { dx?: number; dz?: number };
       this.input = data;
+      // A direction change or release must not sit behind a slow state poll.
+      // Server sequence checks keep delayed earlier requests from overriding it.
+      if (
+        this.connected &&
+        (previous?.dx !== next.dx || previous?.dz !== next.dz)
+      ) {
+        void this.request("sync", { input: data }).catch(() => {});
+      }
     },
   };
   timeout(ms: number) {

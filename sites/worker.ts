@@ -16,9 +16,11 @@ export default {
       {
         headers: {
           "Content-Type": asset.mime,
-          "Cache-Control": path.startsWith("/assets/")
-            ? "public,max-age=31536000,immutable"
-            : "public,max-age=300",
+          "Cache-Control": asset.mime.startsWith("text/html")
+            ? "no-cache"
+            : path.startsWith("/assets/")
+              ? "public,max-age=31536000,immutable"
+              : "public,max-age=300",
           "X-Content-Type-Options": "nosniff",
         },
       },

@@ -5,6 +5,7 @@ import {
   mkdir,
   copyFile,
   writeFile,
+  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
@@ -85,3 +86,10 @@ await copyFile(".openai/hosting.json", "dist/.openai/hosting.json");
 console.log(
   `Embedded ${Object.keys(assets).length} assets, all ten complete pet atlases; Worker ${(await readFile("dist/server/index.js")).length} bytes.`,
 );
+
+// The Worker embeds its client assets. Do not upload duplicate Vite output or
+// stale files from an earlier static deployment.
+for (const name of await readdir("dist")) {
+  if (!["server", ".openai"].includes(name))
+    await rm(path.join("dist", name), { recursive: true, force: true });
+}
