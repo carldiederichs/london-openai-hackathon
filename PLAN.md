@@ -239,14 +239,16 @@ Owen's updated draft PR #3 (`756652f`) is available. His Sites Worker + D1 appro
 - [x] Inspect Owen's updated draft and reconcile its hosting pattern with Feral; do not replace the current castle with the separate shared-world sandbox.
 - [x] Port Sites-managed persistence and HTTP controls around the existing rules, including exclusive room updates, ordered inputs, private roles and hidden Dot state.
 - [x] Preserve all sprite sheets and castle assets in a 4.24 MB Sites Worker build; existing model key configured as a Sites runtime secret (revision 1).
-- [ ] Repeat full games and fix observed faults: joining, start/stop/resume, steering, care/merge, Dot capture, traitor death, timeout, restart and reconnect.
-- [ ] Verify mobile rendering and crowd transport separately; report hosted capacity evidence accurately.
+- [x] Repeat full games and fix observed faults: joining, start/stop/resume, steering, care/merge, Dot capture, traitor death, timeout, restart and reconnect.
+- [x] Verify mobile rendering and crowd transport separately; report hosted capacity evidence accurately.
 - [x] Update README and demo with Sites-only operation; publication status and transport-specific verification remain explicit.
-- [ ] Push main, publish the selected Feral Site, verify its actual public game, and save a sanitized local checkpoint. Keep the old backend available until the replacement passes.
+- [x] Push main, publish the selected Feral Site and verify its actual public game. Version 4 succeeded; local continuity checkpoints retained while Notion is paused. Old backend remains available but unused.
 
 - [x] Replace the live host Menu and tabs with a single QR code; timer controls remain. Local render inspected; public verification is part of the final publication item.
 - [x] Public nine-player traitor rehearsal: browser phone visibly banned, relocated to Pet Memorials, usage zero, movement/care disabled, normal final winner.
 - [x] Complete two local browser games including pause/reconnect/resume, vet, shared breeding and winner screens; 53 rules/transport tests pass after an absent-host deadline regression fix.
-- [ ] Repeat public games and crowd latency check after the QR/menu and polling update, then publish any further fixes. Keep user room 5F7AEC separate from test rooms.
+- [x] Repeat public games and crowd latency check after the QR/menu and polling update, then publish fixes. Version 4 full search completed with a persisted Dot win after 8.6 seconds. Public 300-player run: zero failures, median 676 ms, p95 2,098 ms. User room 5F7AEC was not used for gameplay testing.
 - [x] Reproduced and fixed a Dot-capture rollback caused by rejecting a command after the simulation ended the game. Regression failed before the fix; all 54 tests pass after it.
 - [x] Public QR-only host overlay verified, preserving the existing room. Removed connecting-state menu/offline flashes in the follow-up.
+
+Final verification: all 54 tests pass. Public version 4 contains the race fixes; a fresh 42-seeker game completed successfully and its browser winner matched the API result. The QR-only overlay is live. Physical phone/venue-network and microphone checks remain external; full-crowd HTTP latency is documented, not claimed resolved. See `docs/VERIFICATION.md`.
