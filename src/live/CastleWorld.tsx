@@ -473,9 +473,16 @@ export default function CastleWorld(props: Props) {
     box(1, 1.5, -3.4, 1.8, 0.15, 0.9, "#63503a");
     box(1, 1.61, -3.4, 0.65, 0.05, 0.4, "#d7caa5");
     // Antique photographs of the mansion's fictional former residents.
-    const portraitAtlas = new THREE.TextureLoader().load(
-      "/ancestors-atlas.png",
-    );
+    const portraitPlaceholder = document.createElement("canvas");
+    portraitPlaceholder.width = portraitPlaceholder.height = 1;
+    const portraitAtlas: THREE.Texture = new THREE.Texture(portraitPlaceholder);
+    portraitAtlas.needsUpdate = true;
+    new THREE.ImageLoader().load("/ancestors-atlas.png", (loaded) => {
+      if (disposed) return;
+      portraitAtlas.image = loaded;
+      for (const texture of textures)
+        if (texture.source === portraitAtlas.source) texture.needsUpdate = true;
+    });
     portraitAtlas.colorSpace = THREE.SRGBColorSpace;
     textures.add(portraitAtlas);
     const portraitWalls = [
