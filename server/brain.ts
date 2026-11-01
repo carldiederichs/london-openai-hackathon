@@ -10,7 +10,12 @@ import {
 } from "../src/live/shared.ts";
 import type { Species } from "../src/pets.ts";
 
-export type CardInput = { name: string; description: string; image?: string };
+export type CardInput = {
+  name: string;
+  description: string;
+  image?: string;
+  spriteRows?: 9 | 11;
+};
 export type CardResult = {
   stats: Stats;
   species: Species;

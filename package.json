@@ -7,7 +7,7 @@
     "dev": "concurrently -k -n server,web \"tsx watch server/index.ts\" \"vite\"",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "tsx --test server/*.test.ts",
+    "test": "tsx --test server/*.test.ts src/live/*.test.ts",
     "dev:web": "vite",
     "start": "tsx server/index.ts",
     "typecheck": "tsc --noEmit"

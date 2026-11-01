@@ -19,12 +19,13 @@ import {
 import {
   post,
   readSession,
-  resizePet,
+  preparePetImage,
   saveSession,
   sessionKey,
   useRoom,
 } from "./client";
 import Cheering from "./Cheering";
+import type { Travel } from "./CastleWorld";
 import "./live.css";
 const CastleWorld = lazy(() => import("./CastleWorld"));
 const previewPets = PREVIEW_PETS;
@@ -110,6 +111,7 @@ function JoinForm({
   const [name, setName] = useState(""),
     [description, setDescription] = useState(""),
     [image, setImage] = useState(""),
+    [spriteRows, setSpriteRows] = useState<9 | 11 | undefined>(),
     [busy, setBusy] = useState(false),
     [reading, setReading] = useState(false),
     [error, setError] = useState("");
@@ -122,7 +124,7 @@ function JoinForm({
         await post<Session>(`/api/rooms/${code}/join`, {
           name,
           description,
-          ...(image ? { image } : {}),
+          ...(image ? { image, spriteRows } : {}),
         }),
       );
     } catch (e) {
@@ -167,7 +169,9 @@ function JoinForm({
               setReading(true);
               setError("");
               try {
-                setImage(await resizePet(file));
+                const prepared = await preparePetImage(file);
+                setImage(prepared.image);
+                setSpriteRows(prepared.spriteRows);
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -178,8 +182,22 @@ function JoinForm({
         </label>
         {image && (
           <div className="upload-preview">
-            <img src={image} alt="Your selected pet" />
-            <button type="button" onClick={() => setImage("")}>
+            <PetAvatar
+              pet={{
+                name: "Your selected pet",
+                species: "cat",
+                color: "#fff",
+                image,
+                spriteRows,
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setImage("");
+                setSpriteRows(undefined);
+              }}
+            >
               Remove image
             </button>
           </div>
@@ -431,6 +449,7 @@ export default function LiveApp() {
     code ? readSession(role, code) : null,
   );
   const { room, connected, error: connectionError, send } = useRoom(session);
+  const [travel, setTravel] = useState<Travel[]>([]);
   const [selected, setSelected] = useState("courtyard"),
     [pet, setPet] = useState<LivePet | null>(null),
     [joinCode, setJoinCode] = useState(""),
@@ -545,7 +564,9 @@ export default function LiveApp() {
         <CastleWorld
           pets={room?.pets || previewPets}
           selected={selected}
-          todd={room?.reveal?.location}
+          todd={room?.phase === "lobby" ? "courtyard" : room?.reveal?.location}
+          selectedPet={pet?.id}
+          onTravelChange={setTravel}
           onSelect={(id) => {
             setSelected(id);
             setPanel("rooms");
@@ -570,6 +591,9 @@ export default function LiveApp() {
               >
                 Join room
               </button>
+              <a className="practice-link" href="/practice">
+                Try pet movement ↗
+              </a>
               {joinOpen && (
                 <form
                   onSubmit={(e) => {
@@ -627,6 +651,13 @@ export default function LiveApp() {
               ? ` · ${room.ai.fallbackCount} fallbacks`
               : ""}
           </small>
+          {travel.length > 0 && (
+            <small role="status">
+              {travel.length === 1
+                ? "1 guardian travelling to its room…"
+                : `${travel.length} guardians travelling to their rooms…`}
+            </small>
+          )}
           {room && isHost && (
             <div className="round-buttons">
               {room.phase === "lobby" && (
@@ -657,10 +688,10 @@ export default function LiveApp() {
               {room.phase === "results" && (
                 <button
                   className="primary"
-                  disabled={busy || !connected}
+                  disabled={busy || !connected || travel.length > 0}
                   onClick={() => command("host:next")}
                 >
-                  Next round
+                  {travel.length ? "Pets travelling…" : "Next round"}
                 </button>
               )}
               {["hiding", "resolving"].includes(room.phase) && (

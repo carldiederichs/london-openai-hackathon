@@ -1,8 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { Pet } from "../pets";
+import PetAvatar from "../PetAvatar";
 import { LIVE_LOCATIONS } from "./shared";
+import {
+  INTERIORS,
+  POSITIONS,
+  planJourney,
+  roomPoint,
+  sampleJourney,
+  spriteFrame,
+  type Journey,
+  type Point,
+} from "./movement";
+
+export type Travel = {
+  id: string;
+  name: string;
+  from: string;
+  to: string;
+  mode: Journey["mode"];
+};
 
 type Props = {
   pets: Pet[];
@@ -10,32 +30,9 @@ type Props = {
   todd?: string | null;
   onSelect: (id: string) => void;
   allowed?: string[];
-};
-const POSITIONS: Record<string, [number, number, number]> = {
-  cistern: [-10, 0, 14],
-  rookery: [-10, 7, -7],
-  burrow: [10, 0, 7],
-  belfry: [10, 4, -8],
-  crypt: [-9, 0.8, -8],
-  garden: [-9, 0, 8],
-  tower: [-4.5, 10.4, -3],
-  archives: [3.5, 4.5, 0.5],
-  attic: [8.5, 7.5, -5],
-  vault: [7, 0.9, 3],
-  moat: [-14, 0, 3],
-  tavern: [-8, 2, -0.5],
-  courtyard: [0, 0.8, 3.5],
-  camp: [-3, 0, 12],
-  vet: [10, 0, 12],
-  nursery: [5, 0, 13],
-};
-const INTERIORS: Record<string, [number, number, number]> = {
-  crypt: [-9, 0.9, -7],
-  tavern: [-8.4, 0.9, -3],
-  tower: [-4, 0.9, -3],
-  archives: [1, 0.9, -3],
-  attic: [6.5, 0.9, -6],
-  vault: [6.5, 0.9, -2.7],
+  selectedPet?: string;
+  paused?: boolean;
+  onTravelChange?: (travel: Travel[]) => void;
 };
 const PALETTE = {
   stone: "#9d9279",
@@ -58,7 +55,9 @@ export default function CastleWorld(props: Props) {
   const [inside, setInside] = useState(false);
   const insideRef = useRef(false);
   insideRef.current = inside;
-  const autoInside = props.pets.some((p) => p.location in INTERIORS);
+  const autoInside =
+    props.pets.some((p) => p.location in INTERIORS) ||
+    !!(props.todd && props.todd in INTERIORS);
   useEffect(() => {
     if (simple || failed) return;
     const container = mount.current!;
@@ -434,8 +433,7 @@ export default function CastleWorld(props: Props) {
         });
       }
     });
-    let openness = 0,
-      previousOpen = false;
+    let openness = 0;
 
     // A broad terrace and curved staircase echo the show's entrance approach.
     for (let i = 0; i < 8; i++) {
@@ -671,26 +669,55 @@ export default function CastleWorld(props: Props) {
       tag.userData.location = l.id;
       targets.push(tag);
     });
-    const petObjects = new Map<
-      string,
-      { object: THREE.Group; target: THREE.Vector3; image?: string }
-    >();
+    type Actor = {
+      object: THREE.Group;
+      target: THREE.Vector3;
+      location: string;
+      journey?: Journey;
+      elapsed: number;
+      from: string;
+      sprite: THREE.Sprite;
+      trail: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+      tag: THREE.Sprite;
+      ring: THREE.Mesh;
+      phase: number;
+      art?: string;
+    };
+    const petObjects = new Map<string, Actor>();
     const todd = new THREE.Group();
-    mesh(new THREE.SphereGeometry(0.48, 20, 16), "#262531", [0, 0, 0], todd);
-    for (const x of [-0.16, 0.16])
+    mesh(new THREE.SphereGeometry(0.7, 20, 16), "#171b23", [0, 0, 0], todd);
+    for (const x of [-0.22, 0.22])
       mesh(
-        new THREE.SphereGeometry(0.065, 8, 8),
+        new THREE.SphereGeometry(0.095, 8, 8),
         "#ffffff",
-        [x, 0.07, 0.44],
+        [x, 0.1, 0.64],
         todd,
       );
+    const toddTag = label("TODD · MISALIGNED", 0, 1.3, 0, 3.6);
+    todd.add(toddTag);
     scene.add(todd);
+    todd.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        for (const material of Array.isArray(child.material)
+          ? child.material
+          : [child.material])
+          material.depthTest = false;
+        child.renderOrder = 14;
+      }
+    });
     todd.visible = false;
+    let toddLocation: string | null = null,
+      toddJourney: Journey | undefined,
+      toddElapsed = 0;
     let previousPets: Pet[] | null = null;
     function disposeObject(object: THREE.Object3D) {
       object.traverse((child) => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
-          if (child instanceof THREE.Mesh) child.geometry.dispose();
+        if (
+          child instanceof THREE.Mesh ||
+          child instanceof THREE.Sprite ||
+          child instanceof THREE.Line
+        ) {
+          if (!(child instanceof THREE.Sprite)) child.geometry.dispose();
           const materials = Array.isArray(child.material)
             ? child.material
             : [child.material];
@@ -704,126 +731,157 @@ export default function CastleWorld(props: Props) {
           });
         }
       });
-      scene.remove(object);
+      object.removeFromParent();
     }
-    function updatePets(open: boolean) {
+    function makeActor(p: Pet, point: Point): Actor {
+      const group = new THREE.Group();
+      scene.add(group);
+      group.position.fromArray(point);
+      // Uploaded Codex atlases and ordinary images use the same billboard.
+      // The original illustrated avatar is the fallback, so pet identity stays readable.
+      const source =
+        p.image ||
+        `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderToStaticMarkup(<PetAvatar pet={p} />))}`;
+      const tex = new THREE.TextureLoader().load(source, (t) => {
+        if (disposed || !group.parent) {
+          t.dispose();
+          return;
+        }
+        t.colorSpace = THREE.SRGBColorSpace;
+        if (!p.spriteRows) {
+          const ratio = t.image.width / t.image.height;
+          sprite.scale.set(
+            2.3 * Math.min(1, ratio),
+            2.3 * Math.min(1, 1 / ratio),
+            1,
+          );
+        }
+      });
+      tex.colorSpace = THREE.SRGBColorSpace;
+      if (p.spriteRows) {
+        tex.repeat.set(1 / 8, 1 / p.spriteRows);
+        tex.offset.set(0, 1 - 1 / p.spriteRows);
+      }
+      textures.add(tex);
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: tex,
+          transparent: true,
+          depthWrite: false,
+          depthTest: false,
+        }),
+      );
+      sprite.scale.set(2.15, 2.33, 1);
+      sprite.renderOrder = 15;
+      group.add(sprite);
+      const tag = label(p.name.toUpperCase(), 0, 1.6, 0, 2.6);
+      group.add(tag);
+      const ring = mesh(
+        new THREE.TorusGeometry(0.65, 0.055, 6, 28),
+        "#f1ce83",
+        [0, -0.78, 0],
+        group,
+      );
+      ring.rotation.x = Math.PI / 2;
+      const trail = new THREE.Line(
+        new THREE.BufferGeometry(),
+        new THREE.LineBasicMaterial({
+          color: p.color,
+          transparent: true,
+          opacity: 0.6,
+          depthTest: false,
+        }),
+      );
+      trail.renderOrder = 7;
+      scene.add(trail);
+      // Preserve existing service/trap effects on the new sprite actor.
+      const effect = new THREE.Group();
+      effect.name = "effect";
+      group.add(effect);
+      const bottle = new THREE.Group();
+      bottle.name = "bottle";
+      effect.add(bottle);
+      mesh(
+        new THREE.CylinderGeometry(0.13, 0.16, 0.5, 8),
+        "#70915a",
+        [0.85, 0.55, 0],
+        bottle,
+      );
+      mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.22, 8),
+        "#c9ab70",
+        [0.85, 0.9, 0],
+        bottle,
+      );
+      const resetButton = new THREE.Group();
+      resetButton.name = "reset";
+      effect.add(resetButton);
+      box(0.85, 0.35, 0, 0.65, 0.16, 0.65, "#555f59", resetButton);
+      mesh(
+        new THREE.CylinderGeometry(0.23, 0.23, 0.17, 16),
+        "#e4755b",
+        [0.85, 0.5, 0],
+        resetButton,
+      );
+      return {
+        object: group,
+        target: new THREE.Vector3(...point),
+        location: p.location,
+        from: p.location,
+        elapsed: 0,
+        sprite,
+        tag,
+        ring,
+        trail,
+        phase: 0,
+        art: p.image,
+      };
+    }
+    function updatePets() {
       const pets = latest.current.pets;
-      if (pets === previousPets && open === previousOpen) return;
-      previousOpen = open;
+      if (pets === previousPets) return;
       previousPets = pets;
-      for (const [id, p] of petObjects)
+      for (const [id, actor] of petObjects)
         if (!pets.some((p) => p.id === id)) {
-          disposeObject(p.object);
+          disposeObject(actor.object);
+          disposeObject(actor.trail);
           petObjects.delete(id);
         }
       pets.forEach((p, i) => {
-        let item = petObjects.get(p.id);
-        if (!item) {
-          const group = new THREE.Group();
-          scene.add(group);
-          item = { object: group, target: new THREE.Vector3(), image: p.image };
-          petObjects.set(p.id, item);
-          if (p.image) {
-            const tex = new THREE.TextureLoader().load(p.image, (t) => {
-              if (disposed) {
-                t.dispose();
-                return;
-              }
-              t.colorSpace = THREE.SRGBColorSpace;
-            });
-            textures.add(tex);
-            const sprite = new THREE.Sprite(
-              new THREE.SpriteMaterial({ map: tex }),
-            );
-            sprite.scale.set(1.5, 1.5, 1);
-            group.add(sprite);
-          } else {
-            mesh(
-              new THREE.SphereGeometry(0.4, 10, 8),
-              p.color,
-              [0, 0, 0],
-              group,
-            );
-            for (const x of [-0.18, 0.18]) {
-              if (p.species === "bunny")
-                mesh(
-                  new THREE.CapsuleGeometry(0.09, 0.5, 3, 6),
-                  p.color,
-                  [x, 0.5, 0],
-                  group,
-                );
-              else if (["cat", "dog", "dragon"].includes(p.species))
-                mesh(
-                  new THREE.ConeGeometry(0.17, 0.35, 4),
-                  p.color,
-                  [x, 0.38, 0],
-                  group,
-                );
-              if (p.species === "owl" || p.species === "dragon")
-                mesh(
-                  new THREE.SphereGeometry(0.25, 6, 4),
-                  p.color,
-                  [x * 2.7, -0.02, 0],
-                  group,
-                ).scale.set(1, 0.35, 1.6);
-              mesh(
-                new THREE.SphereGeometry(0.055, 6, 6),
-                PALETTE.dark,
-                [x, 0.07, 0.36],
-                group,
-              );
-            }
-            mesh(
-              new THREE.SphereGeometry(0.06, 6, 6),
-              "#fff2dc",
-              [0, -0.08, 0.4],
-              group,
-            );
-            if (p.species === "robot")
-              box(0, 0.5, 0, 0.08, 0.3, 0.08, PALETTE.dark, group);
-          }
-          const effect = new THREE.Group();
-          effect.name = "effect";
-          group.add(effect);
-          const bottle = new THREE.Group();
-          bottle.name = "bottle";
-          effect.add(bottle);
-          mesh(
-            new THREE.CylinderGeometry(0.13, 0.16, 0.5, 8),
-            "#70915a",
-            [0.55, 0.55, 0],
-            bottle,
-          );
-          mesh(
-            new THREE.CylinderGeometry(0.06, 0.06, 0.22, 8),
-            "#c9ab70",
-            [0.55, 0.9, 0],
-            bottle,
-          );
-          const resetButton = new THREE.Group();
-          resetButton.name = "reset";
-          effect.add(resetButton);
-          box(0.6, 0.35, 0, 0.65, 0.16, 0.65, "#555f59", resetButton);
-          mesh(
-            new THREE.CylinderGeometry(0.23, 0.23, 0.17, 16),
-            "#e4755b",
-            [0.6, 0.5, 0],
-            resetButton,
-          );
-          group.position.set(-3, 0.8, 11);
-        }
-        const base =
-          (open && INTERIORS[p.location]) ||
-          POSITIONS[p.location] ||
-          POSITIONS.camp;
-        const peers = pets.filter((q) => q.location === p.location),
-          index = peers.findIndex((q) => q.id === p.id),
-          angle = (index / Math.max(peers.length, 1)) * Math.PI * 2;
-        item.target.set(
-          base[0] + Math.cos(angle) * 0.8,
-          base[1] + 0.8,
-          base[2] + Math.sin(angle) * 0.8,
+        const peers = pets.filter((q) => q.location === p.location);
+        const end = roomPoint(
+          p.location,
+          peers.findIndex((q) => q.id === p.id),
+          peers.length,
         );
+        let item = petObjects.get(p.id);
+        if (item && item.art !== p.image) {
+          disposeObject(item.object);
+          disposeObject(item.trail);
+          petObjects.delete(p.id);
+          item = undefined;
+        }
+        if (!item) {
+          item = makeActor(p, end);
+          petObjects.set(p.id, item);
+        }
+        if (item.location !== p.location) {
+          item.from = item.location;
+          item.journey = planJourney(
+            item.location,
+            p.location,
+            item.object.position.toArray() as Point,
+            end,
+            (p as Pet & { stats?: { speed: number } }).stats?.speed ?? 4,
+          );
+          item.elapsed = 0;
+          item.location = p.location;
+          item.trail.geometry.dispose();
+          item.trail.geometry = new THREE.BufferGeometry().setFromPoints(
+            item.journey.points.map((v) => new THREE.Vector3(...v)),
+          );
+        }
+        item.target.fromArray(end);
         item.object.userData.offset = i;
         item.object.userData.pet = p;
       });
@@ -869,15 +927,27 @@ export default function CastleWorld(props: Props) {
     observer.observe(container);
     resize();
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let lastTime = 0,
+      motionSignature = "initial",
+      animationTime = 0;
     renderer.setAnimationLoop((time) => {
+      const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
+      lastTime = time;
       if (document.hidden) return;
+      const step = latest.current.paused ? 0 : dt;
+      animationTime += step;
+      updatePets();
       const open =
         insideRef.current ||
-        latest.current.pets.some((p) => p.location in INTERIORS);
+        latest.current.pets.some((p) => p.location in INTERIORS) ||
+        [...petObjects.values()].some(
+          (p) => p.journey && p.from in INTERIORS,
+        ) ||
+        !!(latest.current.todd && latest.current.todd in INTERIORS);
       const targetOpen = open ? 1 : 0;
       openness = media.matches
         ? targetOpen
-        : THREE.MathUtils.lerp(openness, targetOpen, 0.065);
+        : THREE.MathUtils.lerp(openness, targetOpen, 1 - Math.exp(-4 * dt));
       if (Math.abs(openness - targetOpen) < 0.002) openness = targetOpen;
       upperCastle.position.y = openness * 7;
       upperCastle.visible = openness < 0.995;
@@ -897,8 +967,7 @@ export default function CastleWorld(props: Props) {
         point.label.position.set(x, y + 1.25, z);
         halos.get(id)!.position.set(x, y + 0.3, z);
       }
-      updatePets(open);
-      const t = time / 1000;
+      const t = animationTime;
       const now = Date.now();
       const breeding = latest.current.pets.some(
         (p) =>
@@ -950,34 +1019,85 @@ export default function CastleWorld(props: Props) {
         : treating
           ? "vet"
           : "seeking";
-      for (const p of petObjects.values()) {
-        p.object.position.lerp(p.target, media.matches ? 1 : 0.028);
+      const travel: Travel[] = [];
+      const screenRight = new THREE.Vector3().setFromMatrixColumn(
+        camera.matrixWorld,
+        0,
+      );
+      for (const [id, p] of petObjects) {
         const pet = p.object.userData.pet as Pet;
+        let moving = false;
+        const before = p.object.position.clone();
+        if (p.journey) {
+          p.elapsed = media.matches ? p.journey.duration : p.elapsed + step;
+          const sample = sampleJourney(p.journey, p.elapsed);
+          p.object.position.fromArray(sample.position);
+          moving = sample.moving;
+          if (moving)
+            travel.push({
+              id,
+              name: pet.name,
+              from: p.from,
+              to: p.location,
+              mode: p.journey.mode,
+            });
+          else p.journey = undefined;
+        } else {
+          // Peer spacing adjusts locally; it must not restart a completed trip.
+          p.object.position.lerp(
+            p.target,
+            media.matches ? 1 : 1 - Math.exp(-5 * step),
+          );
+        }
+        p.trail.visible = moving;
+        const direction = p.object.position
+          .clone()
+          .sub(before)
+          .dot(screenRight);
+        if (Math.abs(direction) > 0.0001)
+          p.sprite.userData.right = direction >= 0;
+        p.phase += media.matches ? 0 : step;
+        if (pet.spriteRows) {
+          const uv = spriteFrame(
+            pet.spriteRows,
+            moving,
+            p.sprite.userData.right !== false,
+            p.phase,
+          );
+          p.sprite.material.map!.offset.set(uv.x, uv.y);
+        }
+        const gait = moving
+          ? Math.sin(p.phase * (p.journey?.mode === "fly" ? 7 : 15))
+          : Math.sin(t * 2 + p.object.userData.offset);
+        p.sprite.position.y = media.matches
+          ? 0
+          : Math.abs(gait) * (moving ? 0.16 : 0.035);
+        p.sprite.material.rotation =
+          pet.tipsy && !media.matches ? Math.sin(t * 3) * 0.2 : 0;
+        p.tag.visible = moving || latest.current.selectedPet === id;
+        p.ring.visible = moving || latest.current.selectedPet === id;
         const age = now - (pet.effect?.at || 0);
         p.object.visible = !(
           breeding &&
           pet.location === "nursery" &&
           (pet.baby || age > 2500)
         );
-        p.object.rotation.z =
-          pet.tipsy && !media.matches
-            ? Math.sin(t * 3 + p.object.userData.offset) * 0.23
-            : 0;
-        if (pet.tipsy && !media.matches)
-          p.object.position.x += Math.sin(t * 4) * 0.015;
         const effect = p.object.getObjectByName("effect")!;
         effect.getObjectByName("bottle")!.visible =
           pet.effect?.kind === "bottle" && age < 16000;
         effect.getObjectByName("reset")!.visible =
           pet.effect?.kind === "reset" && age < 16000;
-        if (!media.matches)
-          p.object.position.y =
-            p.target.y + Math.sin(t * 3 + p.object.userData.offset) * 0.07;
-        p.object.rotation.y = Math.atan2(
+        effect.rotation.y = Math.atan2(
           camera.position.x - p.object.position.x,
           camera.position.z - p.object.position.z,
         );
       }
+      const signature = travel.map((p) => `${p.id}:${p.to}`).join("|");
+      if (signature !== motionSignature) {
+        motionSignature = signature;
+        latest.current.onTravelChange?.(travel);
+      }
+      renderer.domElement.dataset.movingPets = String(travel.length);
       for (const [id, halo] of halos) {
         halo.visible = id === latest.current.selected;
         (halo.material as THREE.MeshStandardMaterial).color.set(
@@ -986,16 +1106,42 @@ export default function CastleWorld(props: Props) {
             : "#f0bd74",
         );
       }
-      const reveal = latest.current.todd;
+      const reveal = latest.current.todd || null;
       todd.visible = !!reveal;
-      if (reveal && POSITIONS[reveal]) {
-        const [x, y, z] = (open && INTERIORS[reveal]) || POSITIONS[reveal];
-        todd.position.set(
-          x,
-          y + 1.1 + (media.matches ? 0 : Math.sin(t * 2) * 0.1),
-          z,
+      if (reveal) {
+        const end = roomPoint(reveal);
+        if (!toddLocation) todd.position.fromArray(end);
+        else if (reveal !== toddLocation) {
+          toddJourney = planJourney(
+            toddLocation,
+            reveal,
+            todd.position.toArray() as Point,
+            end,
+            7,
+          );
+          toddElapsed = 0;
+        }
+        toddLocation = reveal;
+        if (toddJourney) {
+          toddElapsed = media.matches
+            ? toddJourney.duration
+            : toddElapsed + step;
+          const sample = sampleJourney(toddJourney, toddElapsed);
+          todd.position.fromArray(sample.position);
+          if (!sample.moving) toddJourney = undefined;
+        }
+        todd.lookAt(
+          new THREE.Vector3(
+            camera.position.x,
+            todd.position.y,
+            camera.position.z,
+          ),
         );
-        todd.lookAt(camera.position);
+        renderer.domElement.dataset.toddMoving = String(!!toddJourney);
+      } else {
+        toddLocation = null;
+        toddJourney = undefined;
+        renderer.domElement.dataset.toddMoving = "false";
       }
       controls.update();
       renderer.render(scene, camera);

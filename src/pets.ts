@@ -9,6 +9,8 @@ export type Pet = {
   location: string;
   acted: boolean;
   image?: string;
+  /** Codex atlas: 8 columns; 9 standard rows or 11 including look directions. */
+  spriteRows?: 9 | 11;
   baby?: boolean;
   tipsy?: boolean;
   effect?: { kind: "vet" | "breed" | "bottle" | "reset"; at: number };

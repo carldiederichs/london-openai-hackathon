@@ -73,23 +73,50 @@ export function useRoom(session: Session | null) {
   }
   return { room, connected, error, send };
 }
-export async function resizePet(file: File): Promise<string> {
+export async function preparePetImage(
+  file: File,
+): Promise<{ image: string; spriteRows?: 9 | 11 }> {
   if (
     !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
-    file.size > 10 * 1024 * 1024
+    file.size > 20 * 1024 * 1024
   )
-    throw new Error("Choose a PNG, JPEG or WebP under 10 MB.");
+    throw new Error("Choose a PNG, JPEG or WebP under 20 MB.");
   const bitmap = await createImageBitmap(file);
   try {
     const canvas = document.createElement("canvas");
+    const spriteRows =
+      bitmap.width === 1536 && bitmap.height === 1872
+        ? 9
+        : bitmap.width === 1536 && bitmap.height === 2288
+          ? 11
+          : undefined;
+    if (spriteRows) {
+      // Keep the entire grid and its transparent padding. Never flatten an atlas
+      // into a single thumbnail; reduce every cell by the same integer factor.
+      for (const divisor of [2, 4, 8]) {
+        canvas.width = bitmap.width / divisor;
+        canvas.height = bitmap.height / divisor;
+        canvas
+          .getContext("2d")!
+          .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const image = canvas.toDataURL("image/webp", 0.85);
+        if (image.length <= 245_000) return { image, spriteRows };
+      }
+      throw new Error(
+        "That sprite sheet is too detailed. Try a smaller PNG or WebP export.",
+      );
+    }
     const ratio = Math.min(1, 192 / Math.max(bitmap.width, bitmap.height));
     canvas.width = Math.round(bitmap.width * ratio);
     canvas.height = Math.round(bitmap.height * ratio);
     canvas
       .getContext("2d")!
       .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/png");
+    return { image: canvas.toDataURL("image/png") };
   } finally {
     bitmap.close();
   }
+}
+export async function resizePet(file: File): Promise<string> {
+  return (await preparePetImage(file)).image;
 }

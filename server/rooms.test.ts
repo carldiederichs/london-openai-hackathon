@@ -26,6 +26,48 @@ function brain(): Brain {
     }),
   };
 }
+test("Codex sprite layout survives joining and public state without changing the card budget", async () => {
+  const rooms = new Rooms(brain()),
+    host = rooms.create();
+  const image = "data:image/png;base64,iVBORw0KGgo=";
+  await assert.rejects(
+    rooms.join(host.roomCode, {
+      name: "Invalid",
+      description: "owl",
+      image,
+      spriteRows: 10 as 9,
+    }),
+    /supported/,
+  );
+  await assert.rejects(
+    rooms.join(host.roomCode, {
+      name: "Missing",
+      description: "owl",
+      spriteRows: 9,
+    }),
+    /supported/,
+  );
+  for (const spriteRows of [9, 11] as const) {
+    await rooms.join(host.roomCode, {
+      name: `Atlas ${spriteRows}`,
+      description: "a flying owl",
+      image,
+      spriteRows,
+    });
+  }
+  const pets = rooms.public(host.roomCode).pets;
+  assert.deepEqual(
+    pets.map((p) => p.spriteRows),
+    [9, 11],
+  );
+  for (const pet of pets) {
+    assert.equal(
+      Object.values(pet.stats).reduce((sum, n) => sum + n),
+      20,
+    );
+    assert.ok(pet.image?.startsWith(`/api/rooms/${host.roomCode}/pets/`));
+  }
+});
 async function setup(count = 2) {
   const model = brain(),
     rooms = new Rooms(model),
@@ -184,6 +226,10 @@ test("traps are consumed once, reset caps usage, vet works at zero, illegal AI m
 });
 test("breeding needs reciprocal consent and only grants a baby next round", async () => {
   const { rooms, host, players, room } = await setup();
+  room.pets.forEach((pet) => {
+    pet.spriteRows = 9;
+    pet.image = "/parent-atlas.png";
+  });
   await rooms.start(host);
   players.forEach((p, i) =>
     rooms.submit(
@@ -199,6 +245,8 @@ test("breeding needs reciprocal consent and only grants a baby next round", asyn
   assert.equal(room.pets[0].effect?.kind, "breed");
   assert.equal(room.pets[1].effect?.kind, "breed");
   assert.equal(room.pets[2].effect, undefined);
+  assert.equal(room.pets[2].image, undefined);
+  assert.equal(room.pets[2].spriteRows, undefined);
   assert.equal(room.pets[0].usage, 80);
   assert.equal(room.pets[1].usage, 80);
   await rooms.next(host);

@@ -193,6 +193,13 @@ export class Rooms {
         ))
     )
       throw new Error("Use a resized PNG, JPEG, or WebP pet image.");
+    if (
+      input.spriteRows !== undefined &&
+      (!input.image || ![9, 11].includes(input.spriteRows))
+    )
+      throw new Error(
+        "Use a supported 9-row or 11-row Codex pet sprite sheet.",
+      );
     room.joining++;
     try {
       const card = await this.brain.card(input);
@@ -215,6 +222,7 @@ export class Rooms {
         usage: 100,
         location: "camp",
         acted: false,
+        ...(input.spriteRows ? { spriteRows: input.spriteRows } : {}),
         ...(input.image
           ? { image: `/api/rooms/${code}/pets/${petId}/image` }
           : {}),
@@ -527,6 +535,7 @@ export class Rooms {
             flavor: `A little mix of ${pet.name} and ${partner.name}.`,
             origin: "bred",
             image: undefined,
+            spriteRows: undefined,
           };
           room.pets.push(baby);
           this.event(

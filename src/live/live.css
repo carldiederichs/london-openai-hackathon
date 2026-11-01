@@ -233,6 +233,190 @@
 .session-controls > button {
   width: 100%;
 }
+.practice-link {
+  font-size: 12px;
+  padding: 6px 0;
+}
+.practice-controls,
+.practice-status {
+  position: absolute;
+  z-index: 4;
+  top: 18px;
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: #14241ed9;
+}
+.practice-controls {
+  left: 18px;
+  width: 266px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.practice-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.practice-title a {
+  text-decoration: none;
+  font-size: 20px;
+}
+.practice-title strong {
+  font-size: 16px;
+}
+.practice-title > span {
+  margin-left: auto;
+  font: 9px monospace;
+  color: #a9bb9d;
+  letter-spacing: 1px;
+}
+.practice-controls p {
+  margin: 0;
+}
+.practice-actions {
+  display: flex;
+  gap: 6px;
+}
+.practice-actions > button {
+  flex: 1;
+  padding: 10px 7px;
+}
+.practice-pets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+.practice-pets > button {
+  padding: 5px 2px;
+  min-width: 0;
+  background: #b9cfb609;
+}
+.practice-pets > button[aria-pressed="true"] {
+  border-color: #f1ce83;
+  background: #e3c98a22;
+}
+.practice-pets .pet-avatar {
+  width: 35px;
+  height: 38px;
+  margin: 0 auto 3px;
+}
+.practice-pets button > span:last-child {
+  display: block;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.practice-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  padding: 10px 0;
+  border-block: 1px solid #b9cfb631;
+}
+.practice-card > span {
+  font-size: 10px;
+  color: #e0c991;
+}
+.practice-card > small {
+  grid-column: 1 / -1;
+}
+.practice-upload input {
+  font-size: 10px;
+  padding: 8px;
+}
+.practice-rooms {
+  margin: 0 !important;
+}
+.practice-rooms > div {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+.practice-rooms button {
+  text-align: left;
+}
+.practice-status {
+  right: 18px;
+  width: 238px;
+  max-height: calc(100dvh - 250px);
+}
+.practice-status > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.practice-status i {
+  width: 7px;
+  height: 7px;
+  background: #a1b39b;
+  border-radius: 50%;
+}
+.practice-status i.in-motion {
+  background: #f1ce83;
+  box-shadow: 0 0 12px #e9c87b70;
+}
+.travel-list {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid #b9cfb631;
+}
+.travel-list > small {
+  display: flex;
+  flex-direction: column;
+  color: #edece4;
+}
+.travel-list span {
+  color: #b8c1b3;
+}
+.todd-status {
+  color: #e2c3ef !important;
+  padding-top: 10px;
+  border-top: 1px solid #b9cfb631;
+}
+.todd-status > small {
+  display: block;
+  margin-top: 6px;
+}
+@media (max-width: 700px) {
+  .practice-controls {
+    top: 10px;
+    left: 10px;
+    width: 206px;
+    max-height: calc(65dvh - 20px);
+    padding: 12px;
+    gap: 9px;
+  }
+  .practice-status {
+    top: auto;
+    bottom: 10px;
+    left: 10px;
+    right: auto;
+    width: 206px;
+    max-height: 29dvh;
+    padding: 12px;
+  }
+  .practice-title {
+    gap: 7px;
+  }
+  .practice-title strong {
+    font-size: 13px;
+  }
+  .practice-actions > button {
+    font-size: 10px;
+  }
+  .practice-pets .pet-avatar {
+    width: 28px;
+    height: 31px;
+  }
+  .practice-app .camera-controls {
+    right: 10px;
+    bottom: 10px;
+  }
+}
 .session-controls form {
   padding-top: 6px;
 }
@@ -385,7 +569,7 @@
   align-items: center;
   gap: 14px;
 }
-.upload-preview img {
+.upload-preview .pet-avatar {
   width: 60px;
   height: 60px;
   object-fit: contain;
