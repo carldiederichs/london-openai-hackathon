@@ -121,3 +121,10 @@ A new integration scenario joins 300 guests in bounded HTTP bursts, holds 300 re
 ## Sites-only hosting
 
 Added a Sites Worker with a managed D1 database and generated schema migrations, atomic 300-slot admission, token ownership, sequenced input, collision and stale-input stopping. The frontend uses same-origin HTTP state updates in Sites builds. The SQL-backed tests run concurrent 301 joins (300 admitted, one rejected), isolate phone ownership, reject another pet’s token and stale packets, verify movement across requests and stopping, and free a slot on leave. The 41-test suite passes. No personal Cloudflare account is used. Hosted latency and 300-player throughput must be measured separately.
+
+
+## Public Sites deployment — 1 November 2026
+
+Published version 1 at https://feral-shared-castle.drizzle-fencing-0v.chatgpt.site using only ChatGPT Sites and its managed database. The release source is `867338110fe82ba4e6a785d378dfec2739caa8c0` in the Site’s own source repository, a deployment snapshot of our tested code without unused full pet atlases and Git history. The game branch contains the implementation at `9b04eba`.
+
+Live browser verification: the castle and QR load, `/join` is available anonymously, a sample pet joins, and holding the right arrow changes the same rendered actor on the other screen from x=-9 to x=-3.96. The hosted transport is same-origin HTTP and uses Sites-managed D1, not the separate Durable Object prototype. Native deployment returned success. The 41 local tests pass; 300-player hosted performance and venue/physical-phone tests are still pending.

@@ -219,3 +219,11 @@ This supersedes turn-by-turn prompts and the ten-player cap. Preserve the mansio
 - [x] Merge team main `751aeae` without changing the root shared-world or `/join` experience; retain latest hunt survival and mating rules at `/hunt`.
 - [x] Verify 300 simultaneously connected WebSocket controllers moving and stopping on one screen, with per-phone state isolation. Admission uses bounded bursts; venue phones and Cloudflare still need separate checks.
 - [x] Serve the merged original repository at localhost:4177, replacing the temporary preview copy.
+
+
+## Public Sites-only release
+
+- [x] Supersede the separate-account Cloudflare deployment plan with a Sites Worker and Sites-managed D1. No personal Cloudflare account or backend URL is needed.
+- [x] Publish version 1 and verify anonymous joining plus movement on the live castle.
+- [x] Keep local Socket.IO and production Sites HTTP transports separate; test both.
+- [ ] Load-test the hosted HTTP/D1 path with 300 players, then test physical phones on venue Wi-Fi.

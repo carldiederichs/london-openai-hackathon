@@ -1,5 +1,9 @@
 # Feral
 
+Live castle: https://feral-shared-castle.drizzle-fencing-0v.chatgpt.site
+
+Phone controls: https://feral-shared-castle.drizzle-fencing-0v.chatgpt.site/join
+
 A shared pet castle for the London OpenAI hackathon. Up to 300 guests scan one QR code, choose a ChatGPT companion or upload their own pet, and hold the arrows on their phones to walk around the same grounds. The castle fills the main screen.
 
 Open `/` on the main screen and `/join` on phones. Five existing ChatGPT pets—Codex, Dewey, Fireball, Hoots and Seedy—are available in a swipeable chooser. Upload accepts an image or a ChatGPT sprite sheet (1536 × 1872 or 1536 × 2288). Joining needs no account. Private ChatGPT pet libraries cannot be imported automatically by signed-out visitors.
