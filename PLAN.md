@@ -20,7 +20,7 @@ Build a browser-local castle hide-and-seek game for the London OpenAI hackathon.
 - [x] Implement the deterministic game engine and exercise rule boundaries.
 - [x] Build the illustrated castle, pet roster, action panel, uploads, and instructions.
 - [x] Run tests and production build. Play through the game in a browser and check mobile layout.
-- [ ] Push the branch, open a PR, and save the verified handoff.
+- [x] Push the branch, open a PR, and save the verified handoff. PR #1 is open and ready for review; shared-memory save was read back.
 
 ## Follow-up scope
 
