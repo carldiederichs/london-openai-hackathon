@@ -485,6 +485,16 @@ export default function CastleWorld(props: Props) {
     });
     portraitAtlas.colorSpace = THREE.SRGBColorSpace;
     textures.add(portraitAtlas);
+    // A real guest portrait, separate from the fictional pet ancestor atlas.
+    const tiboPhoto: THREE.Texture = new THREE.Texture(portraitPlaceholder);
+    tiboPhoto.colorSpace = THREE.SRGBColorSpace;
+    tiboPhoto.needsUpdate = true;
+    textures.add(tiboPhoto);
+    new THREE.ImageLoader().load("/tibo.jpg", (loaded) => {
+      if (disposed) return;
+      tiboPhoto.image = loaded;
+      tiboPhoto.needsUpdate = true;
+    });
     const portraitWalls = [
       [-0.7, 3.15, -7],
       [0.7, 3.15, -7],
@@ -506,16 +516,49 @@ export default function CastleWorld(props: Props) {
     for (let i = 0; i < portraitWalls.length; i++) {
       const [x, py, pz] = portraitWalls[i];
       box(x, py, pz, 1.35, 1.55, 0.15, "#a1844c");
-      const photo = portraitAtlas.clone();
-      photo.repeat.set(0.25, 0.25);
-      photo.offset.set((i % 4) * 0.25, 0.75 - Math.floor(i / 4) * 0.25);
+      const isTibo = i === 5; // Right-hand tavern frame, clear of the sideboard.
+      const ancestorIndex = i === 4 ? 5 : i;
+      const photo = isTibo ? tiboPhoto : portraitAtlas.clone();
+      if (!isTibo) {
+        photo.repeat.set(0.25, 0.25);
+        photo.offset.set(
+          (ancestorIndex % 4) * 0.25,
+          0.75 - Math.floor(ancestorIndex / 4) * 0.25,
+        );
+      }
       textures.add(photo);
       const frame = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.15, 1.35),
+        new THREE.PlaneGeometry(1.15, isTibo ? 1.15 : 1.35),
         new THREE.MeshBasicMaterial({ map: photo }),
       );
-      frame.position.set(x, py, pz + 0.09);
+      frame.name = isTibo
+        ? "Tibo — Keeper of the Reset"
+        : `Pet ancestor ${ancestorIndex + 1}`;
+      frame.position.set(x, py + (isTibo ? 0.1 : 0), pz + 0.09);
       interiors.add(frame);
+      if (isTibo) {
+        const plaqueCanvas = document.createElement("canvas");
+        plaqueCanvas.width = 512;
+        plaqueCanvas.height = 96;
+        const ink = plaqueCanvas.getContext("2d")!;
+        ink.fillStyle = "#bba16b";
+        ink.fillRect(0, 0, 512, 96);
+        ink.fillStyle = "#30291c";
+        ink.textAlign = "center";
+        ink.font = "600 36px Georgia";
+        ink.fillText("TIBO", 256, 38);
+        ink.font = "24px Georgia";
+        ink.fillText("Keeper of the Reset", 256, 76);
+        const plaqueTexture = new THREE.CanvasTexture(plaqueCanvas);
+        plaqueTexture.colorSpace = THREE.SRGBColorSpace;
+        textures.add(plaqueTexture);
+        const plaque = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.15, 0.22),
+          new THREE.MeshBasicMaterial({ map: plaqueTexture }),
+        );
+        plaque.position.set(x, py - 0.6, pz + 0.09);
+        interiors.add(plaque);
+      }
     }
     const storeys = new Map<number, THREE.Group>();
     for (const level of [-1, 1, 2]) {

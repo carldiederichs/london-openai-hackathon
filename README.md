@@ -88,3 +88,9 @@ The nursery reveals a bed with an animated duvet and floating hearts during reci
 Sixteen original fictional pixel-pet ancestor portraits hang across the rooms. Select Hallucination Hall to inspect their histories. Petdex shows each current pet's card, traits, lineage and reachable places, with a link to the external Petdex gallery. No external pet downloads or account installs are automatic.
 
 The hedge silhouette uses the [OpenAI icon from Bootstrap Icons](https://icons.getbootstrap.com/icons/openai/), with its MIT license included in `public/bootstrap-icons-LICENSE.txt`. Portrait art was generated specifically for this game.
+
+The ground-floor tavern includes a framed photograph of Thibault “Tibo” Sottiaux,
+with the fictional game plaque “Keeper of the Reset”. Photo source:
+[Tibo's public GitHub profile](https://github.com/thsottiaux)
+([original avatar](https://github.com/thsottiaux.png), retrieved 1 November 2026).
+The photo is separate from the generated pet art; no endorsement is implied.

@@ -134,3 +134,6 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - Exterior draw calls fell from 737 to 225. Static geometry is batched, obsolete label textures are removed, animation uses elapsed time, and idle duvet work is skipped.
 - Built server health and bundled portrait/logo assets returned HTTP 200.
 - Only the four explicitly listed external checks remain: real API key, physical phone, user-owned microphone test and GitHub workflow permission.
+
+- [x] Add Tibo's actual photograph in a brass frame in the ground-floor tavern,
+      with a “Keeper of the Reset” plaque and room lore. Record the photo source.

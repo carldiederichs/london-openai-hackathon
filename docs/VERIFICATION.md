@@ -44,3 +44,11 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
 - Viewport checks include 390 × 844 and desktop dimensions. The microphone, actual model requests, physical venue phone and remote CI remain the previously recorded external checks.
 
 - Fresh production render after the final asset-loading fixes reported no console warnings or errors. Portrait textures start with a valid placeholder and the SVG uses an explicit hedge color.
+
+### Tibo portrait — 1 November 2026
+
+- Added the locally served public GitHub avatar of Thibault Sottiaux to the tavern,
+  with a brass frame and fictional “Keeper of the Reset” plaque; source in README.
+- Swapped the adjacent portraits as requested: blue pet left, Tibo right, clear
+  of the sideboard. Visually verified in the local browser cutaway.
+- TypeScript and production build pass. No game rules changed.

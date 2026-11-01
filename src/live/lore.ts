@@ -147,7 +147,7 @@ export const ROOM_LORE: Record<string, string> = {
     "The model weights are locked inside. The sign says: DO NOT LIFT WITHOUT A GPU.",
   moat: "The streaming buffer is overflowing. A rubber duck offers excellent debugging advice and no refunds.",
   tavern:
-    "Temperature 2.0: confident on the nose, hallucinations on the finish. Please infer responsibly.",
+    "Tibo watches from a brass frame: Keeper of the Reset. The pets leave empty token jars beneath his portrait. Please infer responsibly.",
   courtyard:
     "The round table has thirteen chairs and a context window for twelve. Someone always gets summarised.",
   cistern:
