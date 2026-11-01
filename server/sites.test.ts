@@ -306,3 +306,25 @@ test("Sites resolves timeout and instant Dot wins, and persists graveyard bans w
     w.sqlite.close();
   }
 });
+
+test("a phone settles the deadline without waiting for an absent host", async (t) => {
+  let clock = Date.now();
+  t.mock.method(Date, "now", () => clock);
+  const w = await world(1);
+  try {
+    await w.action(w.host, "host:start");
+    w.edit((r) => {
+      r.endsAt = clock + 1000;
+      r.dot = "library";
+    });
+    await w.sync(w.host);
+    clock += 1200;
+    const result = await w.call(`/api/rooms/${w.code}/sync`, {
+      token: w.players[0].token,
+    });
+    assert.equal(result.data.phase, "over");
+    assert.equal(result.data.winnerPetIds.length, 1);
+  } finally {
+    w.sqlite.close();
+  }
+});

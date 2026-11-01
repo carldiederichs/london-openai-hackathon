@@ -245,3 +245,6 @@ Owen's updated draft PR #3 (`756652f`) is available. His Sites Worker + D1 appro
 - [ ] Push main, publish the selected Feral Site, verify its actual public game, and save a sanitized local checkpoint. Keep the old backend available until the replacement passes.
 
 - [x] Replace the live host Menu and tabs with a single QR code; timer controls remain. Local render inspected; public verification is part of the final publication item.
+- [x] Public nine-player traitor rehearsal: browser phone visibly banned, relocated to Pet Memorials, usage zero, movement/care disabled, normal final winner.
+- [x] Complete two local browser games including pause/reconnect/resume, vet, shared breeding and winner screens; 53 rules/transport tests pass after an absent-host deadline regression fix.
+- [ ] Repeat public games and crowd latency check after the QR/menu and polling update, then publish any further fixes. Keep user room 5F7AEC separate from test rooms.
