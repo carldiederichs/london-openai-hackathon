@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { LIVE_LOCATIONS } from "./shared.ts";
 import {
   POSITIONS,
   planJourney,
@@ -29,6 +30,8 @@ test("ground routes pass through the terrace and entrance rather than cutting th
   );
 });
 test("every location can be reached, stopped exactly, and revisited", () => {
+  for (const room of LIVE_LOCATIONS)
+    assert.ok(POSITIONS[room.id], `${room.id} has a world position`);
   for (const from of Object.keys(POSITIONS))
     for (const to of Object.keys(POSITIONS)) {
       const trip = planJourney(from, to, roomPoint(from), roomPoint(to));
@@ -39,6 +42,33 @@ test("every location can be reached, stopped exactly, and revisited", () => {
       assert.equal(final.moving, false);
       assert.ok(trip.points.every((point) => point.every(Number.isFinite)));
     }
+});
+test("new estate floors use the entrance and landings instead of crossing walls", () => {
+  for (const to of [
+    "ballroom",
+    "dormitory",
+    "chapel",
+    "serverloft",
+    "coldstorage",
+    "drain",
+  ]) {
+    const trip = planJourney("camp", to, roomPoint("camp"), roomPoint(to));
+    assert.ok(
+      trip.points.some(([x, , z]) => x === -4 && z === -0.3),
+      `${to} uses entrance`,
+    );
+    assert.ok(trip.points.length > 3, `${to} uses intermediate route nodes`);
+  }
+});
+test("Codex idle rests and running frame holds follow the original player timing", () => {
+  assert.equal(spriteFrame(11, false, true, 1.67).x, 0);
+  assert.equal(spriteFrame(11, false, true, 1.68).x, 1 / 8);
+  assert.equal(spriteFrame(11, false, true, 6.59).x, 5 / 8);
+  assert.equal(spriteFrame(11, false, true, 6.6).x, 0);
+  assert.equal(spriteFrame(9, true, false, 0.119).x, 0);
+  assert.equal(spriteFrame(9, true, false, 0.12).x, 1 / 8);
+  assert.equal(spriteFrame(9, true, false, 1.05).x, 7 / 8);
+  assert.equal(spriteFrame(9, true, false, 1.06).x, 0);
 });
 test("flight rises above the castle, swimming has a water destination, and speed changes travel time", () => {
   const start = roomPoint("camp"),

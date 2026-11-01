@@ -268,7 +268,15 @@ export function spriteFrame(
   seconds: number,
 ) {
   const row = moving ? (right ? 1 : 2) : 0;
-  const frame = Math.floor(seconds * (moving ? 12 : 6)) % (moving ? 8 : 6);
+  // Match the installed Codex player's frame holds, including its long idle rests.
+  const durations = moving
+    ? [120, 120, 120, 120, 120, 120, 120, 220]
+    : [1680, 660, 660, 840, 840, 1920];
+  let remaining = (seconds * 1000) % durations.reduce((a, b) => a + b, 0);
+  let frame = 0;
+  while (frame < durations.length - 1 && remaining >= durations[frame]) {
+    remaining -= durations[frame++];
+  }
   return {
     x: frame / 8,
     y: 1 - (row + 1) / rows,

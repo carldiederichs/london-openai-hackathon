@@ -1,4 +1,5 @@
 import type { Pet } from "./pets";
+import "./pet-sprites.css";
 
 export default function PetAvatar({
   pet,

@@ -1316,6 +1316,9 @@ export default function CastleWorld(props: Props) {
       });
       tex.colorSpace = THREE.SRGBColorSpace;
       if (p.spriteRows) {
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        tex.generateMipmaps = false;
         tex.repeat.set(1 / 8, 1 / p.spriteRows);
         tex.offset.set(0, 1 - 1 / p.spriteRows);
       }
@@ -1511,7 +1514,8 @@ export default function CastleWorld(props: Props) {
     let lastTime = 0,
       frame = 0,
       lastClothActive = false;
-    let motionSignature = "initial", animationTime = 0;
+    let motionSignature = "initial",
+      animationTime = 0;
     renderer.setAnimationLoop((time) => {
       const dt = Math.min(
         0.05,
@@ -1693,16 +1697,18 @@ export default function CastleWorld(props: Props) {
         const gait = moving
           ? Math.sin(p.phase * (p.journey?.mode === "fly" ? 7 : 15))
           : Math.sin(t * 2 + p.object.userData.offset);
-        p.sprite.position.y = media.matches
-          ? 0
-          : Math.abs(gait) * (moving ? 0.16 : 0.035);
+        p.sprite.position.y =
+          media.matches || pet.spriteRows
+            ? 0
+            : Math.abs(gait) * (moving ? 0.16 : 0.035);
         p.sprite.material.rotation =
           pet.tipsy && !media.matches ? Math.sin(t * 3) * 0.2 : 0;
         p.tag.visible = moving || latest.current.selectedPet === id;
         p.ring.visible = moving || latest.current.selectedPet === id;
         const age = now - (pet.effect?.at || 0);
         p.object.visible =
-          (!(pet.location in INTERIORS) ||
+          (moving ||
+            !(pet.location in INTERIORS) ||
             (ROOM_FLOORS[pet.location] || 0) === visibleFloor) &&
           !(breeding && pet.location === "nursery" && (pet.baby || age > 2500));
         const effect = p.object.getObjectByName("effect")!;
@@ -1740,7 +1746,9 @@ export default function CastleWorld(props: Props) {
         );
       }
       const reveal = latest.current.todd || null;
-      todd.visible = !!reveal && (!(reveal in INTERIORS) || (ROOM_FLOORS[reveal] || 0) === visibleFloor);
+      todd.visible =
+        !!reveal &&
+        (!(reveal in INTERIORS) || (ROOM_FLOORS[reveal] || 0) === visibleFloor);
       if (reveal) {
         const end = roomPoint(reveal);
         if (!toddLocation) todd.position.fromArray(end);

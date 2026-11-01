@@ -1,7 +1,7 @@
 import { ANCESTORS, ROOM_LORE } from "./lore";
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { PREVIEW_PETS } from "../pets";
+import { CODEX_PETS, PREVIEW_PETS } from "../pets";
 import PetAvatar from "../PetAvatar";
 import {
   accessible,
@@ -113,6 +113,7 @@ function JoinForm({
     [description, setDescription] = useState(""),
     [image, setImage] = useState(""),
     [spriteRows, setSpriteRows] = useState<9 | 11 | undefined>(),
+    [chosenPet, setChosenPet] = useState(""),
     [busy, setBusy] = useState(false),
     [reading, setReading] = useState(false),
     [error, setError] = useState("");
@@ -136,8 +137,50 @@ function JoinForm({
   }
   return (
     <section className="live-panel join-form">
-      <p>Upload an image or describe your pet. Every card has 20 points.</p>
+      <p>
+        Choose a Codex pet, upload your own, or describe one. Every card has 20
+        points.
+      </p>
       <form onSubmit={join}>
+        <fieldset className="codex-pet-picker" disabled={busy || reading}>
+          <legend>Choose your companion</legend>
+          <div className="practice-pets">
+            {CODEX_PETS.map((p) => (
+              <button
+                type="button"
+                key={p.id}
+                aria-label={`Choose ${p.name}`}
+                aria-pressed={chosenPet === p.id}
+                onClick={async () => {
+                  setReading(true);
+                  setError("");
+                  try {
+                    const response = await fetch(p.image!);
+                    if (!response.ok)
+                      throw new Error("Could not load that pet. Try again.");
+                    const prepared = await preparePetImage(
+                      new File([await response.blob()], `${p.id}.webp`, {
+                        type: "image/webp",
+                      }),
+                    );
+                    setImage(prepared.image);
+                    setSpriteRows(prepared.spriteRows);
+                    setName(p.name);
+                    setDescription(p.description);
+                    setChosenPet(p.id);
+                  } catch (error) {
+                    setError((error as Error).message);
+                  } finally {
+                    setReading(false);
+                  }
+                }}
+              >
+                <PetAvatar pet={p} />
+                <span>{p.name}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <label>
           Pet name
           <input
@@ -173,6 +216,7 @@ function JoinForm({
                 const prepared = await preparePetImage(file);
                 setImage(prepared.image);
                 setSpriteRows(prepared.spriteRows);
+                setChosenPet("");
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -197,6 +241,7 @@ function JoinForm({
               onClick={() => {
                 setImage("");
                 setSpriteRows(undefined);
+                setChosenPet("");
               }}
             >
               Remove image

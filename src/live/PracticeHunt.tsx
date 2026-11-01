@@ -82,16 +82,16 @@ export default function PracticeHunt() {
     // First excursion deliberately shows walking, flying, swimming, climbing,
     // and narrow entrances at once. Later excursions choose other legal rooms.
     const first = [
-      "archives",
-      "rookery",
-      "burrow",
       "cistern",
       "tower",
-      "vault",
-      "tower",
+      "rookery",
+      "archives",
+      "burrow",
       "belfry",
-      "attic",
+      "vault",
       "crypt",
+      "maze",
+      "orchard",
     ];
     setPets((current) =>
       current.map((p, i) => {
@@ -149,7 +149,11 @@ export default function PracticeHunt() {
           <button className="primary" disabled={paused} onClick={sendPack}>
             Send the pack ↗
           </button>
-          <button aria-pressed={paused} onClick={() => setPaused(!paused)}>
+          <button
+            data-pause
+            aria-pressed={paused}
+            onClick={() => setPaused(!paused)}
+          >
             {paused ? "Resume" : "Pause"}
           </button>
         </div>
