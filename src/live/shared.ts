@@ -21,6 +21,22 @@ export const GATES: Record<
   | { stat: Stat; min: number; max?: number; night?: boolean; label?: string }
   | undefined
 > = {
+  dormitory: { stat: "smallness", min: 5 },
+  observatory: { stat: "flight", min: 5 },
+  serverloft: { stat: "climb", min: 5 },
+  eyrie: { stat: "flight", min: 6 },
+  coldstorage: {
+    stat: "speed",
+    min: 1,
+    night: true,
+    label: "Night vision · cat, owl, ghost",
+  },
+  floodedcellar: { stat: "swim", min: 5 },
+  drain: { stat: "smallness", min: 6 },
+  ivory: { stat: "flight", min: 6 },
+  lake: { stat: "swim", min: 5 },
+  orchard: { stat: "climb", min: 5 },
+  glasshouse: { stat: "smallness", min: 5 },
   cistern: { stat: "swim", min: 5 },
   rookery: { stat: "flight", min: 5 },
   burrow: { stat: "smallness", min: 6 },
@@ -164,8 +180,7 @@ export function accessible(
     (!gate ||
       (pet.stats[gate.stat] >= gate.min &&
         (!gate.max || pet.stats[gate.stat] <= gate.max) &&
-        (!gate.night ||
-          ["cat", "owl", "ghost"].includes(pet.species ?? "ghost"))))
+        (!gate.night || ["cat", "owl", "ghost"].includes(pet.species ?? ""))))
   );
 }
 

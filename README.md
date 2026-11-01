@@ -32,7 +32,7 @@ Add `OPENAI_API_KEY` to `.env.local` locally, then restart `npm run dev`. Never 
 - Todd starts from a seeker's card, redistributing points until its unlocked abilities differ from every original seeker. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
 - Each **player** submits one action per round, even if they own a baby. Seeking costs 10 usage. Prompts rotate through eight words, emoji only, two rhyming lines, then eight words.
 - The host resolves submitted moves together. Missing players rest; the host confirms before skipping them. Refreshing a tab restores its session and the latest room state.
-- Bottles cost another 25 usage and disappear after triggering. The hidden Tivo reset restores usage to 100 once. The vet restores up to 50, even from zero. Healing never grants another action.
+- Bottles cost another 25 usage and disappear after triggering. The hidden Tibo reset restores usage to 100 once. The vet restores up to 50, even from zero. Healing never grants another action.
 - Breeding needs reciprocal requests from two players. Both parents spend 20 usage and their actions. The faster parent owns the baby; ties use a stable pet ID ordering. The baby can act next round. A room can grow to 20 pets.
 - Todd's current location and private game objects are excluded from client state. A brief fictional move summary and its previous location appear after resolution. Todd moves again before the next round opens.
 
@@ -53,7 +53,7 @@ The 2D prototype and its engine have been removed. The 3D game is the only exper
 ## Checks and production build
 
 ```bash
-npm test          # 13 live engine, transport, and Socket.IO integration tests
+npm test          # 15 live engine, transport, and Socket.IO integration tests
 npm run typecheck
 npm run build
 npm start         # serves dist and the room server at http://localhost:4174
@@ -74,3 +74,17 @@ Verified and pending checks are in [PLAN.md](PLAN.md), with details in [docs/VER
 - `src/pets.ts`, `src/PetAvatar.tsx`: shared pet data and original avatar artwork.
 
 Development milestones are pushed directly to `main`, as requested. The GitHub Actions template is in `docs/github-actions-check.yml`; move it to `.github/workflows/check.yml` using a login with workflow permission to enable CI. The current login could push code but GitHub rejected workflow creation, so CI is not installed.
+
+## Expanded estate
+
+The map now has 30 hiding places across connected gardens, the ground floor, two upper floors and the dark cellars. The grounds include a lake, boathouse, orchard, glasshouse, pavilion, OpenAI-knot hedge maze, pet graveyard and Ivory Tower. The crypt lives in the graveyard. The cellar cutaway lifts into view for inspection; it is a game cross-section rather than a real floor plan.
+
+Click the light rings to select destinations. Hover shows access rules and a description. Rooms has a search box; phone players can use those same buttons. Previous/next floor buttons wrap through Cellars, Ground, First and Second; the dropdown jumps directly. Moving to an upper room automatically reveals its floor. Right-drag pans; pinch/scroll zooms.
+
+Large pets (smallness 3 or less) reach the belfry rope; tiny pets reach burrows and drains. Water rooms require swimming, high rooms require flight, and cats, owls and ghosts have night vision for the crypt and cold storage. Some specialist destinations require 6 rather than 5 points. Cards retain the 20-point budget.
+
+The nursery reveals a bed with an animated duvet and floating hearts during reciprocal breeding. The clinic reveals a treatment table, IV stand and healing cross. Hidden Temperature 2.0 bottles cost 25 extra usage, make pets visibly tipsy, and reduce move priority by 2 without changing room access. Tipsiness lasts until the vet, Tibo reset, or a new hunt; babies do not inherit it. Discovered bottles and the reset button appear briefly beside the discovering pet. Their hidden locations remain server-only.
+
+Sixteen original fictional pixel-pet ancestor portraits hang across the rooms. Select Hallucination Hall to inspect their histories. Petdex shows each current pet's card, traits, lineage and reachable places, with a link to the external Petdex gallery. No external pet downloads or account installs are automatic.
+
+The hedge silhouette uses the [OpenAI icon from Bootstrap Icons](https://icons.getbootstrap.com/icons/openai/), with its MIT license included in `public/bootstrap-icons-LICENSE.txt`. Portrait art was generated specifically for this game.

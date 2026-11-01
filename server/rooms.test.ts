@@ -433,3 +433,35 @@ test("specialist habitats enforce swimming, flying, size, height and night visio
   for (const species of ["cat", "owl", "ghost"])
     assert.equal(accessible({ ...base, species }, "crypt"), true);
 });
+
+test("tipsy pets resolve later without changing room access", async () => {
+  const { rooms, host, players, room } = await setup();
+  await rooms.start(host);
+  room.dot = "garden";
+  room.traps = ["tavern"];
+  room.reset = null;
+  room.pets[0].stats = { flight: 3, smallness: 3, speed: 8, climb: 3, swim: 3 };
+  room.pets[1].stats = { flight: 4, smallness: 3, speed: 7, climb: 3, swim: 3 };
+  room.pets[0].tipsy = true;
+  assert.equal(accessible(room.pets[0], "vault"), true);
+  players.forEach((p, i) =>
+    rooms.submit(
+      p,
+      { type: "seek", petId: room.pets[i].id, prompt: "tavern" },
+      1,
+      1,
+    ),
+  );
+  await rooms.resolve(host, 1, 1);
+  assert.equal(room.pets[1].usage, 65);
+  assert.equal(room.pets[0].usage, 90);
+  assert.equal(
+    room.events.filter((e) => e.text.includes("Temperature 2.0:")).length,
+    1,
+  );
+  rooms.restart(host);
+  assert.equal(
+    room.pets.some((p) => p.tipsy || p.effect),
+    false,
+  );
+});

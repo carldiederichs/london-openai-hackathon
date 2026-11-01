@@ -774,3 +774,204 @@
     overflow-wrap: anywhere;
   }
 }
+
+.room-lore {
+  color: #c8baa0;
+  font-style: italic;
+  line-height: 1.6;
+  border-top: 1px solid #ffffff18;
+  padding-top: 12px;
+}
+.ancestral-gallery details {
+  border-top: 1px solid #ffffff20;
+  padding: 12px 0;
+}
+.ancestral-gallery summary {
+  cursor: pointer;
+  font-family: Georgia, serif;
+  color: #e2d1ac;
+}
+.ancestor-photo {
+  background-image: url("/ancestors-atlas.png");
+  background-size: 400% 400%;
+  aspect-ratio: 1;
+  margin: 12px 0;
+  border: 7px ridge #8b7048;
+  box-shadow: 0 5px 15px #0005;
+}
+.ancestral-gallery p {
+  line-height: 1.6;
+}
+
+.world-hover {
+  position: absolute;
+  right: 18px;
+  bottom: 230px;
+  width: 240px;
+  z-index: 5;
+  pointer-events: none;
+  padding: 14px;
+}
+.world-hover strong,
+.world-hover small {
+  display: block;
+}
+.world-hover small {
+  margin-top: 7px;
+  color: #c7cfbd;
+}
+.world-hover p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 9px 0 0;
+  color: #c4cbbc;
+}
+@media (max-width: 700px) {
+  .world-hover {
+    right: 10px;
+    bottom: 185px;
+    width: 180px;
+    padding: 10px;
+  }
+  .world-hover p {
+    display: none;
+  }
+}
+
+.floor-controls {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 4px;
+  z-index: 6;
+  padding: 6px;
+}
+.floor-controls button {
+  font-size: 11px;
+  padding: 9px;
+}
+.floor-controls button[aria-pressed="true"] {
+  background: #c7d1b42b;
+  border-color: #d6dfc187;
+}
+@media (max-width: 700px) {
+  .floor-controls {
+    left: 10px;
+    bottom: 10px;
+    flex-direction: column;
+  }
+  .floor-controls button {
+    padding: 7px;
+  }
+}
+
+.hud-left {
+  bottom: 82px;
+}
+.floor-controls {
+  width: 218px;
+  flex-direction: row;
+  align-items: center;
+}
+.floor-controls select {
+  min-width: 0;
+  flex: 1;
+  padding: 7px;
+  font-size: 11px;
+}
+.floor-controls button {
+  padding: 7px 10px;
+}
+@media (max-width: 700px) {
+  .hud-left {
+    bottom: 66px;
+  }
+  .floor-controls {
+    width: 200px;
+    flex-direction: row;
+  }
+  .floor-controls button {
+    padding: 7px;
+  }
+  .floor-controls select {
+    padding: 6px;
+  }
+}
+
+.floor-controls {
+  width: 218px;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px #0002;
+  align-items: center;
+}
+.floor-controls button {
+  width: 30px;
+  height: 32px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff09;
+  font-size: 16px;
+  line-height: 32px;
+}
+.floor-controls select {
+  height: 32px;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0 6px;
+  margin: 0;
+  font-size: 12px;
+  line-height: normal;
+}
+.hud-left {
+  bottom: 78px;
+}
+@media (max-width: 700px) {
+  .floor-controls {
+    width: 200px;
+    gap: 6px;
+    padding: 5px;
+  }
+  .hud-left {
+    bottom: 68px;
+  }
+}
+
+.room-list > input {
+  width: 100%;
+  position: sticky;
+  top: 0;
+  margin-bottom: 10px;
+  background: #21352ce8;
+  z-index: 2;
+}
+
+/* Secondary panels already carry room details; avoid covering them with a tooltip. */
+.panel-open .world-hover {
+  display: none;
+}
+
+.world-hover.is-hovering {
+  top: 18px;
+  bottom: auto;
+}
+.panel-open .world-hover.is-hovering {
+  display: block;
+}
+.live-app:has(.world-hover.is-hovering) .hud-right {
+  top: 190px;
+}
+@media (max-width: 700px) {
+  .world-hover.is-hovering {
+    top: 10px;
+  }
+  .live-app:has(.world-hover.is-hovering) .hud-right {
+    top: 170px;
+  }
+}
