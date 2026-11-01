@@ -4,6 +4,12 @@
 
 Built for the London OpenAI hackathon, Feral supports rooms of up to **300 players plus a host**. Players steer their pets from a phone; the shared screen renders the whole estate. The castle is inspired by Ardross Castle, the filming location used by *The Traitors*. Its procedural geometry is original, not a reconstruction of the real floor plan.
 
+## Play on Sites
+
+Open [Feral](https://feral-hackathon.sugarybrine.chatgpt.site) on the big screen, create a room, and let players scan its QR code. No laptop server or shared Wi-Fi is needed for the published game; each device needs internet access. The host starts, stops and resumes the shared one-minute timer.
+
+**Migration status:** the Sites-only transport below is being verified. The last verified public release still uses the separate Durable Object backend until the replacement is published.
+
 ## Start Feral locally
 
 Use Node.js 22 or later.
@@ -75,43 +81,49 @@ The earlier turn-based engine remains in the code for compatibility and tests. I
 ```bash
 npm test          # game rules, transport, movement and sprite frames
 npm run typecheck
-npm run build
+npm run build       # Sites Worker + frontend artifact
 npm run test:load # 300 simulated players plus a host over WebSockets
 npm start         # serves dist and the room server at http://localhost:4174
 ```
 
 The local load check connects **301 WebSocket clients**, sends movement inputs from 300 players for 12 seconds, and checks that every player receives motion updates without an unexpected disconnect. It reports event-loop delay, CPU time, received bytes and memory use. This is a local capacity check, not a guarantee for venue Wi-Fi, physical phones or a deployed server.
 
-`npm run preview` serves the production frontend, configured by `.env.production` to use the Cloudflare backend. Development remains local Socket.IO. To build for a local Node production server, run `VITE_GAME_BACKEND= VITE_GAME_TRANSPORT= npm run build`, then `npm start`. Set `PORT` and optionally `PUBLIC_URL` for a different local server address.
+Local development uses Socket.IO. To build for the local Node server, run `VITE_GAME_BACKEND= VITE_GAME_TRANSPORT= npm run build:web`, then `npm start`. Set `PORT` and optionally `PUBLIC_URL` for another local address. Local rooms and uploads live in memory and disappear when the server restarts.
 
-The server owns the deadline and ends an unpaused game even without connected clients. While the host has stopped the game, the deadline and breeding timers remain frozen. Reconnecting does not reset the clock. Phones receive their owned pet's updates; the host receives the whole world's positions.
-
-In the local Node server, rooms, uploaded images and reconnect identities are held in memory. Restarting the server clears them. Session credentials live in each tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained, and rooms idle for six hours are cleared when a new room is created. The deployed Durable Object backend persists room snapshots and uploads; this local limitation does not apply to it. Neither mode provides durable user accounts.
+The Sites build uses same-origin HTTP requests and persistent D1 storage. Session credentials stay in each tab's session storage; refreshing reconnects, but clearing that storage loses access to that session. Neither transport creates durable user accounts. Phones receive only their own pets and private role; the host receives the shared world without the hidden Dot or traitor list.
 
 See [PLAN.md](PLAN.md) and [verification notes](docs/VERIFICATION.md) for completed checks and outstanding work. A live `gpt-4.1-mini` custom-card request returned an AI-labelled, balanced 20-point card. The local hiding and legacy move model paths have also returned AI mode. Physical-phone networking still requires its own checks; microphone hardware testing remains user-owned.
 
-## Cloudflare and Sites
+## Sites-managed hosting
 
-Live game: [https://feral-hackathon.sugarybrine.chatgpt.site](https://feral-hackathon.sugarybrine.chatgpt.site). The Sites frontend and Durable Object backend are published with the synchronized start, traitors, graveyard elimination and phone control fixes.
+Owen's updated PR #3 demonstrates the hosting approach: a **Sites-managed Worker and D1 database**, with HTTP polling for shared state. Sites provisions these resources. You do not need to operate a separate Cloudflare account, Worker deployment or WebSocket server. There is still a server: Sites runs it behind the same public URL.
 
-The browser frontend is packaged for Sites. Its public backend is `https://feral-game.maxmelander03.workers.dev`. `.env.production` contains only that public URL and the native WebSocket transport choice. The OpenAI key is a Cloudflare Worker secret, never a frontend variable.
-
-Each room has one Durable Object running the same `Rooms` engine as local development. It owns movement, the hidden Dot, usage, merging and the deadline. Snapshots are saved every second and after important actions; uploads are stored separately. A sudden isolate restart can lose up to one second of movement. An alarm enforces the deadline if every client disconnects. Host and player credentials remain in tab session storage.
+Feral keeps its complete castle and `Rooms` rules rather than replacing them with the PR's separate movement sandbox. D1 stores private game snapshots, per-session views, ordered controller inputs and custom pet images. A database lease and guarded transaction serialize each room's changes across Worker instances. Phones poll one request at a time; the simulation advances in short steps so slower refreshes do not change travel speed. Releases and stale inputs stop movement.
 
 ```bash
-npm run worker:check
-npm run worker:deploy
-npx wrangler secret put OPENAI_API_KEY
-GAME_BACKEND=https://feral-game.maxmelander03.workers.dev PLAYERS=2 npm run test:durable
+npm ci
+npm run db:generate  # only after changing db/schema.ts; commit generated migrations
+npm run sites:check
+npm run build:sites
+npm run sites:migrate # local D1 only
+npm run sites:dev     # http://localhost:8792
 ```
 
-For local Durable Object testing, run `npm run worker:dev`, then `VITE_GAME_BACKEND=http://localhost:8787 VITE_GAME_TRANSPORT=durable npm run dev:web`. The normal `npm run dev` still uses the local Node backend. `PLAYERS=300 npm run test:durable` checks the full native-WebSocket crowd; set `GAME_BACKEND` to the tested server URL. Do not run it in a room used by players: it creates a separate test room.
+The build embeds the frontend, castle art and all ten complete animated pet atlases in `dist/server/index.js`. It optimizes delivered image sizes while preserving original artwork in `public/`. `.openai/hosting.json` retains Feral's existing Sites identity and declares its D1 binding. Publish the built artifact through Sites; Sites applies generated migrations before deploying it. Configure `OPENAI_API_KEY` as a **Sites runtime secret**, never in source or a `VITE_` variable.
+
+The host and phone use one stored deadline. When no devices are polling, the Sites game does not run a background interval; the next request settles the expired game before accepting an action. Stop freezes the deadline and gameplay; reconnecting does not restart it. The separately deployed Durable Object implementation remains in `worker/` as a previous transport, with its original tests, and is not required by the Sites-only build.
+
+Capacity is capped at 300 players plus a host. Earlier 301-WebSocket tests apply to the Node and Durable Object transports, **not** to Sites/D1 polling. See [verification notes](docs/VERIFICATION.md) for the specific checks completed against each deployment. Venue devices and network conditions need their own rehearsal.
 
 ## Code map
 
 - `server/rooms.ts`: authoritative movement, room state, hidden objects, abilities and outcomes.
 - `server/brain.ts`: structured OpenAI cards, moves and hiding choices, with offline fallbacks.
-- `worker/index.ts`: Durable Object transport, snapshots, uploads and venue admission limits.
+- `sites/game.ts`, `sites/worker.ts`: Sites API, serialized game updates, per-player views and embedded frontend.
+- `db/schema.ts`, `drizzle/`: persistent Sites schema and generated migrations.
+- `src/live/sites-client.ts`: same-origin polling and controller inputs.
+- `scripts/build-sites.mjs`: complete Sites Worker build with optimized animated assets.
+- `worker/index.ts`: previous standalone Durable Object transport.
 - `src/live/durable-client.ts`: authenticated native WebSocket connection and reconnect.
 - `server/index.ts`: HTTP routes, Socket.IO sessions, movement broadcasts, reconnects and static hosting.
 - `src/live/WorldController.tsx`: phone direction pad, keyboard movement and care shortcuts.
@@ -124,6 +136,6 @@ Development milestones are pushed directly to `main`. The GitHub Actions templat
 
 ## Artwork and credits
 
-Max's original companion assets were integrated selectively to preserve the castle and current interface. Compatible controls and rate-limit improvements from Owen's PR #3 were ported into this game; its separate sandbox and Cloudflare worker were not substituted for the existing castle and hunt. The hedge silhouette uses the [OpenAI icon from Bootstrap Icons](https://icons.getbootstrap.com/icons/openai/), with its MIT license in `public/bootstrap-icons-LICENSE.txt`. The mansion's pet portraits were generated for this game.
+Max's original companion assets were integrated selectively to preserve the castle and current interface. Owen's PR #3 supplied the Sites-managed Worker/D1 hosting approach and compatible controller improvements. Feral preserves its own castle, connected paths, private roles and full hunt rules. The hedge silhouette uses the [OpenAI icon from Bootstrap Icons](https://icons.getbootstrap.com/icons/openai/), with its MIT license in `public/bootstrap-icons-LICENSE.txt`. The mansion's pet portraits were generated for this game.
 
 The tavern contains a pixel-art portrait of Thibault “Tibo” Sottiaux with the fictional plaque **Keeper of the Reset**. It was generated to match the pet portraits: a square bust with his recognizable face, smile and head tilt, warm candlelight, chunky pixels, antique clothing and a dark mansion backdrop. The asset is `public/tibo-pixel.png`. Identity reference: [Tibo's public GitHub profile](https://github.com/thsottiaux) and [original avatar](https://github.com/thsottiaux.png), retrieved 1 November 2026. The source photo is retained as a reference; no endorsement is implied.

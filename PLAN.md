@@ -230,3 +230,15 @@ Historical status before this publication closeout: milestone `02e4a49` had been
 Live: https://feral-hackathon.sugarybrine.chatgpt.site. Sites version 1 and the latest Durable Object backend are deployed. The detailed evidence is in `docs/VERIFICATION.md` under Published Feral verification. The development chat stopped before final publication; the publishing chat completed it and checked incoming state before handoff. Owen's latest PR branch targets a different Site and separate game implementation, so its hosting identity was not substituted for this selected Feral Site. Compatible contributions already in Feral remain intact.
 
 Code/docs milestone `7c6bb60` is pushed and the remote hash matches. Sanitized local checkpoint `3f4d7647-608f-471a-8cc8-eac8439cdfe4` was saved and read back. Notion remains paused for this project. Physical-device/venue-network and user-owned microphone checks remain external; GitHub CI installation remains blocked by workflow permission.
+
+## Sites-only migration and repeated game checks
+
+Owen's updated draft PR #3 (`756652f`) is available. His Sites Worker + D1 approach removes the separately operated backend, not the need for authoritative shared state. Preserve Feral's current world, pets and complete hunt rules; preserve this Site's identity and public audience.
+
+- [x] Inspect Owen's updated draft and reconcile its hosting pattern with Feral; do not replace the current castle with the separate shared-world sandbox.
+- [x] Port Sites-managed persistence and HTTP controls around the existing rules, including exclusive room updates, ordered inputs, private roles and hidden Dot state.
+- [x] Preserve all sprite sheets and castle assets in a 4.24 MB Sites Worker build; existing model key configured as a Sites runtime secret (revision 1).
+- [ ] Repeat full games and fix observed faults: joining, start/stop/resume, steering, care/merge, Dot capture, traitor death, timeout, restart and reconnect.
+- [ ] Verify mobile rendering and crowd transport separately; report hosted capacity evidence accurately.
+- [x] Update README and demo with Sites-only operation; publication status and transport-specific verification remain explicit.
+- [ ] Push main, publish the selected Feral Site, verify its actual public game, and save a sanitized local checkpoint. Keep the old backend available until the replacement passes.

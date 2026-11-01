@@ -14,7 +14,8 @@ import {
   matingOccupants,
 } from "../src/live/mating.ts";
 import { ROOM_LORE } from "../src/live/lore.ts";
-import { randomBytes, randomUUID } from "node:crypto";
+const randomUUID = () => crypto.randomUUID();
+const randomHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, "0")).join("");
 import {
   accessible,
   ownsPet,
@@ -44,6 +45,7 @@ export type Room = {
   code: string;
   mode: "turns" | "realtime";
   lastTick: number;
+  inputTimeoutMs?: number;
   controllers: Map<string, { dx: number; dz: number; at: number; seq: number }>;
   cursors: Map<string, NavCursor>;
   visits: Map<string, string>;
@@ -77,7 +79,7 @@ export type Room = {
   lastBan: Map<string, number>;
 };
 const pathPoints = navigationPoints();
-const token = () => randomBytes(24).toString("base64url");
+const token = () => randomHex(24);
 const constraintFor = (round: number): Constraint =>
   ["eight", "emoji", "rhyme", "eight"][(round - 1) % 4] as Constraint;
 const signature = (stats: Stats) =>
@@ -332,7 +334,7 @@ export class Rooms {
           );
         }
       }
-      if (!input || now - input.at > 350 || pet.usage <= 0) continue;
+      if (!input || now - input.at > (room.inputTimeoutMs ?? 350) || pet.usage <= 0) continue;
       const result = steerOnPaths(
         cursor,
         input.dx,
@@ -580,7 +582,7 @@ export class Rooms {
       );
     let code: string;
     do {
-      code = randomBytes(3).toString("hex").toUpperCase();
+      code = randomHex(3).toUpperCase();
     } while (this.rooms.has(code));
     const secret = token();
     this.rooms.set(code, {

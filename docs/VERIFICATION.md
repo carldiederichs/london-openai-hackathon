@@ -146,3 +146,14 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - A separate nine-player public-backend check verified exactly one private traitor, shared deadlines, a real collision, zero usage and relocation to the graveyard. The death-message rendering is implemented; its exact eliminated-phone screen was not separately captured in this publication check.
 - All 48 automated tests and Worker TypeScript checks passed. The production build passed in the development chat. Browser logs had texture-load warnings but no observed render failure; the castle and phone companion rendered.
 - Remaining external checks: real venue phones/network and user-owned microphone hardware. GitHub workflow installation still requires workflow permission. These do not block the verified publication.
+
+## Sites-only migration — local checks, 1 November 2026
+
+Owen PR #3 at `756652f` supplied the Sites-managed Worker/D1 hosting pattern. This implementation keeps Feral's existing Rooms engine and castle, rather than adopting the PR's independent shared-world sandbox. The selected Feral Site ID is unchanged. Publication verification follows separately; the earlier release remains the live reference until deployment succeeds.
+
+- 52 automated tests passed, including SQLite-backed Sites API tests for 300 admissions and parallel joins, private roles, host authority, ordered input, pause/resume, merge/shared ownership, care routing, original-pet restart, timeout, Dot capture and persisted graveyard bans.
+- Sites and retained Durable Object TypeScript checks passed. Sites Worker build embeds all ten complete sprite atlases and castle assets in approximately 4.24 MB, retaining original images in source.
+- Local HTTP stress run: 300 players plus host, 7,602 ms to join in batches of 20, at least 20 state responses per client during 12 seconds, median 400 ms and p95 782 ms response time, zero failed requests. Pause/resume verified afterward. This measures a local Worker/D1 emulator, not 300 venue phones or hosted capacity.
+- Initial crowd run failed 196 requests: every phone competed to update the world, overloading the emulator. The fix combines input/authorization/view access into one indexed statement and leaves normal ticks to the host. A phone can advance the simulation when the host's state becomes stale. The repeat above passed.
+- Browser: phone joined, controls locked before Start, matching 0:39 host/phone clocks, movement input, Stop at 0:35, refresh preserving the stopped deadline, Resume, and path-following vet arrival with usage restoration. 390px phone layout inspected. Full final-publication and further repeated-game checks remain pending.
+- A pre-existing rollback test compared wall-clock `serverNow` across two calls and intermittently failed by 1 ms. It now excludes only that clock field while comparing the complete retained game state.

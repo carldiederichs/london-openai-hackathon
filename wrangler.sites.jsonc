@@ -1,0 +1,13 @@
+{
+  "name": "feral-sites-local",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-10-30",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "feral-local",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "drizzle",
+    },
+  ],
+}

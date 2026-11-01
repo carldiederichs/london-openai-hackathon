@@ -92,14 +92,14 @@ function QRJoin({ code, base }: { code: string; base: string }) {
       )}
       <div>
         <p>
-          {import.meta.env.VITE_GAME_TRANSPORT === "durable"
+          {["durable", "sites"].includes(import.meta.env.VITE_GAME_TRANSPORT)
             ? "Scan to join. Up to 300 players."
             : "Same Wi-Fi as the host. Up to 300 players."}
         </p>
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
         </a>
-        {import.meta.env.VITE_GAME_TRANSPORT !== "durable" && (
+        {!["durable", "sites"].includes(import.meta.env.VITE_GAME_TRANSPORT) && (
           <details>
             <summary>Connection settings</summary>
             <label>

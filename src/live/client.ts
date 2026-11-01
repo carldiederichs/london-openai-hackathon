@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
+import { SitesConnection } from "./sites-client";
 import { DurableConnection } from "./durable-client";
 export const GAME_BACKEND = (import.meta.env.VITE_GAME_BACKEND || "").replace(
   /\/$/,
@@ -9,14 +10,29 @@ export const apiUrl = (path: string) => GAME_BACKEND + path;
 import type { PublicRoom, Reply, Session, MotionFrame } from "./shared";
 
 export async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(apiUrl(path), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const reply: Reply<T> = await res.json();
-  if (!reply.ok) throw new Error(reply.error);
-  return reply.data;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const reply: Reply<T> = await res.json();
+    // A busy reply means the server never acquired the lease or applied this
+    // request. Only that explicit rejection is safe to retry automatically.
+    if (
+      res.status === 503 &&
+      !reply.ok &&
+      reply.error.startsWith("The game is busy") &&
+      attempt < 12
+    ) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 + Math.random() * 700),
+      );
+      continue;
+    }
+    if (!reply.ok) throw new Error(reply.error);
+    return reply.data;
+  }
 }
 // Keep the established storage key so the Feral rename preserves joined sessions.
 export const sessionKey = (role: string, code: string) =>
@@ -45,17 +61,21 @@ export function useRoom(session: Session | null) {
   const [room, setRoom] = useState<PublicRoom | null>(null),
     [connected, setConnected] = useState(false),
     [error, setError] = useState("");
-  const socket = useRef<Socket | DurableConnection | null>(null);
+  const socket = useRef<Socket | DurableConnection | SitesConnection | null>(
+    null,
+  );
   useEffect(() => {
     if (!session) return;
     const s =
-      import.meta.env.VITE_GAME_TRANSPORT === "durable"
-        ? new DurableConnection(GAME_BACKEND, session)
-        : io(GAME_BACKEND || undefined, {
-            auth: { code: session.roomCode, token: session.token },
-            reconnection: true,
-            transports: ["websocket"],
-          });
+      import.meta.env.VITE_GAME_TRANSPORT === "sites"
+        ? new SitesConnection(GAME_BACKEND, session)
+        : import.meta.env.VITE_GAME_TRANSPORT === "durable"
+          ? new DurableConnection(GAME_BACKEND, session)
+          : io(GAME_BACKEND || undefined, {
+              auth: { code: session.roomCode, token: session.token },
+              reconnection: true,
+              transports: ["websocket"],
+            });
     socket.current = s;
     s.on("connect", () => {
       setConnected(true);
@@ -107,7 +127,7 @@ export function useRoom(session: Session | null) {
       .emitWithAck(event, data);
     if (!reply.ok) throw new Error(reply.error);
   }
-  const sequence = useRef(0);
+  const sequence = useRef(Date.now() * 1000);
   function steer(dx: number, dz: number, generation: number) {
     socket.current?.volatile.emit("player:steer", {
       dx,
