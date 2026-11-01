@@ -1,19 +1,13 @@
-# One shared castle
+# Sites-only shared castle
 
-`/` is the big screen; `/join` is the phone chooser and arrow controller. Guests join anonymously. All controllers and screens connect to one authoritative world. The server validates session ownership and movement, clamps map bounds, blocks walking through the main mansion, normalizes diagonals and stops input after two seconds without a refresh. Releasing a button, backgrounding the page or disconnecting also stops movement. Refresh restores the pet; choosing another pet removes the previous one. Disconnected pets retain their slot for three minutes.
+The production game is hosted entirely by ChatGPT Sites: a Worker ESM application serves the castle, phone interface and same-origin HTTP game API. Sites provisions the DB binding and applies the generated Drizzle migrations. No personal Cloudflare account, API token, or separate backend is used.
 
-Five sample portraits come from existing ChatGPT built-in pets. Own pets use an image upload or the first idle frame of an exported ChatGPT pet atlas. No private account library connection is required.
+`/` shows the castle and QR code; `/join` lets anonymous guests choose one of five existing pets, upload an image or import the first idle cell of an exported ChatGPT pet sheet, and hold arrows to move.
 
-## ChatGPT Sites + Cloudflare Durable Objects
+The shared database stores session ownership and authoritative input/positions. A conditional insert atomically enforces 300 slots under concurrent joins. Input sequence checks reject stale or repeated packets. Movement is projected from the last saved position and direction, with map bounds, mansion collision and a two-second input timeout. Releasing an arrow sends a stop request. A browser crash can leave a pet moving for at most two seconds; disconnected slots expire after three minutes.
 
-The frontend can be built as static `dist` and hosted as a public ChatGPT Site. The live backend must run separately: Sites static hosting does not run this Node server. `worker/index.js` and `wrangler.jsonc` provide the Cloudflare backend. Every request routes to the same named Durable Object, `promptkeep-castle`, with capacity 300. Native WebSockets send movement to that object; the big screen gets all pets, while each phone gets its own pet plus counts. Movement ticks at 20 Hz with updates at up to 10 Hz. Sessions and positions are saved to Durable Object storage, with movement checkpointed every two seconds; a restart may lose the last two seconds of movement. Uploaded portraits use separate storage values.
+The hosted transport uses HTTP rather than the LAN prototype’s Socket.IO: the big screen refreshes every 200 ms plus request time; a phone refreshes its own state every 750 ms plus request time. Each phone receives only its own pet and crowd counts. Pet images are loaded separately from position records. This first Sites-only deployment needs real device and live 300-player performance testing; local SQL admission tests and the separate Node WebSocket crowd test do not establish hosted throughput.
 
-Deployment steps:
+Build: `npm run build`. This creates the Sites Worker and embedded frontend assets. `npm run build:local` retains the original local Node build. `npm run dev` continues to run the LAN prototype. The hosted release contains the shared world; the older Node hunt API is not part of this Worker.
 
-1. Authenticate Wrangler to the intended Cloudflare account and run `npx wrangler deploy` from this repository.
-2. Set `ALLOWED_ORIGINS` on the Worker to the final Site origin (comma separated if multiple origins are required).
-3. Set `VITE_WORLD_API_URL` to the Worker HTTPS URL before `npm run build`.
-4. Publish `dist` using Sites, with public access for signed-out guests. The QR code uses that Site origin.
-5. Test actual phones on venue internet and load-test the deployed Worker. The local Node path now tests 300 live WebSocket controllers moving and stopping together; this does not establish physical-device, rendering or deployed performance.
-
-This source has not yet been deployed to either host. The Node/Socket.IO path is verified locally; the Worker still needs a Cloudflare runtime check and deployment credentials. No ChatGPT, OpenAI API, or pet account key is exposed to guests.
+The earlier `worker/index.js` / `wrangler.jsonc` Durable Object implementation is retained as unused prototype source. It is not part of the Sites deployment.

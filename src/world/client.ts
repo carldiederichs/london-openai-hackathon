@@ -55,6 +55,82 @@ export function useWorld(session: WorldSession | null, controller: boolean) {
             : pet.image,
         })),
       });
+    if (import.meta.env.VITE_WORLD_TRANSPORT === "sites") {
+      let stopped = false;
+      let timer: ReturnType<typeof setTimeout>;
+      let lastTime = 0,
+        activeMask = 0;
+      const post = async (path: string, body: unknown) => {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          keepalive: true,
+        });
+        const reply = await response.json();
+        if (!reply.ok)
+          throw new Error(reply.error || "The castle could not be reached.");
+        return reply.data;
+      };
+      const poll = async () => {
+        try {
+          const value: WorldState = controller
+            ? await post("/api/world/state", session)
+            : await fetch("/api/world/state", { cache: "no-store" })
+                .then((r) => r.json())
+                .then((r) => {
+                  if (!r.ok) throw new Error(r.error);
+                  return r.data;
+                });
+          if (!stopped && value.now >= lastTime) {
+            lastTime = value.now;
+            receive(value);
+            setConnected(true);
+            setError("");
+          }
+        } catch (value) {
+          if (!stopped) {
+            setConnected(false);
+            setError((value as Error).message);
+          }
+        }
+        if (!stopped) timer = setTimeout(poll, controller ? 750 : 200);
+      };
+      const movement = (mask: number) => {
+        activeMask = mask;
+        if (!session) return;
+        void post("/api/world/input", {
+          ...session,
+          mask,
+          sequence: ++sequence.current,
+        })
+          .then(() => {
+            if (!stopped) {
+              setConnected(true);
+              setError("");
+            }
+          })
+          .catch((value) => {
+            if (!stopped) {
+              setConnected(false);
+              setError(value.message);
+            }
+          });
+      };
+      send.current = movement;
+      if (controller) movement(0);
+      const heartbeat = setInterval(() => {
+        if (controller && session) movement(activeMask);
+      }, 5000);
+      void poll();
+      return () => {
+        stopped = true;
+        clearTimeout(timer);
+        clearInterval(heartbeat);
+        movement(0);
+        send.current = () => {};
+      };
+    }
     if (!API_BASE) {
       const socket = io("/world", { auth });
       socket.on("connect", () => {

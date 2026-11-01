@@ -1,0 +1,1 @@
+CREATE INDEX `world_players_seen_idx` ON `world_players` (`seen`);

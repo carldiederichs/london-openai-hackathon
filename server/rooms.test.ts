@@ -423,9 +423,13 @@ test("failed asynchronous work restores the round and retained submissions", asy
   model.hide = async () => {
     throw new Error("unavailable");
   };
-  const snapshot = JSON.stringify(rooms.public(room.code));
+  const stableState = () => {
+    const { serverNow, ...state } = rooms.public(room.code);
+    return state;
+  };
+  const snapshot = stableState();
   await assert.rejects(rooms.next(host));
-  assert.equal(JSON.stringify(rooms.public(room.code)), snapshot);
+  assert.deepEqual(stableState(), snapshot);
 });
 test("no-key AI fallback makes balanced cards, legal moves, rhyme decisions and legal hiding", async () => {
   const ai = createBrain(),

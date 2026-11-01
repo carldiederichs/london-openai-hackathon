@@ -1,5 +1,12 @@
 import { defineConfig } from "vite";
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define:
+    mode === "sites"
+      ? {
+          "import.meta.env.VITE_WORLD_TRANSPORT": JSON.stringify("sites"),
+          "import.meta.env.VITE_WORLD_API_URL": JSON.stringify(""),
+        }
+      : {},
   // Lazy scene/practice chunks share the same prebundled React dispatcher.
   optimizeDeps: {
     include: [
@@ -25,4 +32,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

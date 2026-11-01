@@ -73,15 +73,15 @@ Resolved moves follow world-space routes through the grounds, terrace, entrance 
 ```bash
 npm test          # game rules, admission, movement, sprites and shared-world transport
 npm run typecheck
-npm run build
+npm run build:local
 npm start         # serves dist and the room server at http://localhost:4174
 ```
 
-`npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. This project has not been deployed.
+`npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. The Sites deployment uses `npm run build`; its shared-world API is independent of the local Node hunt server.
 
 The server finishes hunt mode at the deadline even without connected clients. Reconnecting restores the original deadline; late model responses cannot change a finished hunt. An action still waiting on the model at the bell is not applied.
 
-The local server keeps the shared world, rooms, uploaded images, and reconnect identities in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. Local play requires a reachable server. Hosted deployment uses the separate Worker described below.
+The local server keeps the shared world, rooms, uploaded images, and reconnect identities in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. Local play requires a reachable server. Production uses only ChatGPT Sites hosting and its managed database; see [shared-world deployment](docs/SHARED_WORLD.md).
 
 Verified and pending checks are in [PLAN.md](PLAN.md), with details in [docs/VERIFICATION.md](docs/VERIFICATION.md). Live model calls still need a working key. Physical-phone networking and microphone hardware require venue/device testing. Usage is fictional game health, not OpenAI account credit.
 
