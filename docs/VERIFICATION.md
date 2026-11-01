@@ -78,3 +78,8 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - Screenshots saved locally as castle-courtyard.png and castle-running.png in the task visualization folder; these are evidence, not repository assets.
 
 - The live host enabled Next round after arrival and advanced to round 2. Fixed the custom hip-roof UV attribute mismatch; a fresh browser reload reported no new renderer errors. Merge commit `497cc03` was pushed and matched the remote main ref.
+
+### Room floor flicker — 1 November 2026
+
+- Front gallery slabs and room floors both ended at height 0.98, causing depth conflicts while orbiting. Gallery surfaces now end at 0.94, below the room finishes. Side passages end at 0.92 and cross-galleries at 0.94; each passage is created once instead of three times.
+- Inspected the open cutaway at close zoom and after orbiting: room finishes stay visible without the competing gallery surface. TypeScript and production build pass. No gameplay or route coordinates changed.

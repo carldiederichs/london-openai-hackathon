@@ -157,3 +157,7 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - [x] Saved a sanitized local continuity checkpoint with readback and retained the practice preview. Notion remains paused.
 
 Multiple playable floors, cellars as a separate floor and floor cycling are superseded by the latest single-floor request. Previous floor-specific checks above are historical evidence only.
+
+## Room flicker repair
+
+- [x] Removed duplicate passage slabs and separated overlapping gallery/room floor heights. Inspected the cutaway at close zoom and multiple camera angles; TypeScript and production build pass.

@@ -484,11 +484,13 @@ export default function CastleWorld(props: Props) {
     const storeys = new Map<number, THREE.Group>();
     // A huge, single-storey mansion: 21 new rooms around broad connected galleries.
     box(0, 0.76, -36, 88, 0.28, 76, stone, scene);
-    for (let row = 0; row < 3; row++) {
-      box(0, 0.91, -12 - row * 24, 86, 0.06, 3.4, "#b0a387");
-      for (let col = 0; col <= 7; col++)
-        box(-42 + col * 12, 0.91, -36, 2.5, 0.06, 50, "#b0a387");
-    }
+    // Distinct top surfaces: foundation .90, side passages .92, galleries
+    // .94, room floors .98, rugs 1.03. Coplanar slabs shimmer when orbiting.
+    // Build each side passage once, not once per cross-gallery.
+    for (let col = 0; col <= 7; col++)
+      box(-42 + col * 12, 0.91, -36, 2.5, 0.02, 50, "#b0a387");
+    for (let row = 0; row < 3; row++)
+      box(0, 0.93, -12 - row * 24, 86, 0.02, 3.4, "#b0a387");
     box(-4, 0.9, -8.7, 2, 0.1, 3, stone);
     for (const room of ANNEX_ROOMS) {
       const { x, z, index, id } = room;
@@ -789,7 +791,7 @@ export default function CastleWorld(props: Props) {
     activeParent = interiors;
     // The broad front galleries tie the entrance rooms into the same footprint.
     for (const x of [-27, 27]) {
-      box(x, 0.93, -5.5, 32, 0.1, 9, "#918571");
+      box(x, 0.92, -5.5, 32, 0.04, 9, "#918571");
       box(x, 1.65, -1, 32, 1.5, 0.3, stone);
     }
     activeParent = interiors;
