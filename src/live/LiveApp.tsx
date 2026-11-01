@@ -10,6 +10,7 @@ import {
   CONSTRAINTS,
   GATES,
   LIVE_LOCATIONS,
+  MAX_PLAYERS,
   STAT_KEYS,
   STAT_LABELS,
   validatePrompt,
@@ -82,7 +83,7 @@ function QRJoin({ code, base }: { code: string; base: string }) {
         />
       )}
       <div>
-        <p>Same Wi-Fi as the host. Up to ten players.</p>
+        <p>Same Wi-Fi as the host. Up to {MAX_PLAYERS} players.</p>
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
         </a>
@@ -688,8 +689,8 @@ export default function LiveApp() {
               </div>
               {room && (
                 <small>
-                  {room.players.length}/10 players · {room.submitted.length}/
-                  {room.players.length} ready
+                  {room.players.length}/{MAX_PLAYERS} players ·{" "}
+                  {room.submitted.length}/{room.players.length} ready
                 </small>
               )}
             </>

@@ -5,15 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,web \"tsx watch server/index.ts\" \"vite\"",
-    "build": "tsc -b && vite build",
+    "build": "npm run build:sites",
     "preview": "vite preview --host 127.0.0.1",
     "test": "tsx --test server/*.test.ts src/live/*.test.ts",
     "dev:web": "vite",
     "start": "tsx server/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:sites": "tsc --noEmit && vite build --mode sites --outDir dist/client && node scripts/build-sites.mjs",
+    "db:generate": "drizzle-kit generate",
+    "build:local": "tsc -b && vite build"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.3.0",
     "openai": "^7.47.0",
     "qrcode": "^1.5.4",
@@ -31,6 +35,8 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.182.0",
     "concurrently": "^9.2.5",
+    "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.2",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

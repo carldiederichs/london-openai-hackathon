@@ -1,5 +1,12 @@
 import { defineConfig } from "vite";
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define:
+    mode === "sites"
+      ? {
+          "import.meta.env.VITE_WORLD_TRANSPORT": JSON.stringify("sites"),
+          "import.meta.env.VITE_WORLD_API_URL": JSON.stringify(""),
+        }
+      : {},
   // Lazy scene/practice chunks share the same prebundled React dispatcher.
   optimizeDeps: {
     include: [
@@ -14,12 +21,15 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
     proxy: {
-      "/api": { target: "http://127.0.0.1:4174", changeOrigin: false },
+      "/api": {
+        target: process.env.DEV_API_URL || "http://127.0.0.1:4174",
+        changeOrigin: false,
+      },
       "/socket.io": {
-        target: "http://127.0.0.1:4174",
+        target: process.env.DEV_API_URL || "http://127.0.0.1:4174",
         ws: true,
         changeOrigin: false,
       },
     },
   },
-});
+}));

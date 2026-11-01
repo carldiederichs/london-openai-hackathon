@@ -1,6 +1,10 @@
 # Feral
 
-A live castle hide-and-seek game for the London OpenAI hackathon. Up to ten phone players bring a pet, submit a move each round, and try to catch Todd, an AI-controlled dot. The host runs the hunt on a shared screen.
+A shared pet castle for the London OpenAI hackathon. Up to 300 guests scan one QR code, choose a ChatGPT companion or upload their own pet, and hold the arrows on their phones to walk around the same grounds. The castle fills the main screen.
+
+Open `/` on the main screen and `/join` on phones. Five existing ChatGPT pets—Codex, Dewey, Fireball, Hoots and Seedy—are available in a swipeable chooser. Upload accepts an image or a ChatGPT sprite sheet (1536 × 1872 or 1536 × 2288). Joining needs no account. Private ChatGPT pet libraries cannot be imported automatically by signed-out visitors.
+
+The previous turn-based Todd hunt remains available at `/hunt` and its `/host/:code` and `/play/:code` links.
 
 The interactive 3D grounds are inspired by Ardross Castle, the filming location used by The Traitors. The castle model is original procedural geometry, with a sandstone façade, square entrance tower, slate roofs, turrets, terrace stairs, gardens and woodland. It is a game map, not a reconstruction of the real floor plan.
 
@@ -13,7 +17,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:4173** on the host laptop. Click **Create room**, then let players scan the QR code or open the displayed join link on the same Wi-Fi. The host can start with 1–10 players. A description is enough to join; a resized PNG, JPEG or WebP image is optional.
+Open **http://localhost:4173** on the main screen, then scan its QR code from phones on the same Wi-Fi. Choose a companion and hold the directional arrows to move. For the older round-based hunt, open `/hunt` and create a room.
 
 For a local rehearsal, open **http://localhost:4173/practice** and choose **Start · 1 minute**. The large clock counts down from 1:00; pets with usage remaining at zero share the win. The pack moves automatically, or select a pet and click a room. Practice moves cost 10 usage and the vet restores 50. **More** contains image upload, movement pause, auto-move and reset. Pausing movement does not pause the clock. Practice is local to the tab, makes no model calls, and omits the live game's hidden bottles and audience votes. Choose **Mating room** for two pets to rehearse their merge.
 
@@ -29,11 +33,17 @@ cp .env.example .env.local
 
 Add `OPENAI_API_KEY` to `.env.local` locally, then restart `npm run dev`. Never paste a key into chat, commit it, or use a `VITE_` environment variable for it. `OPENAI_MODEL` defaults to `gpt-4.1-mini` and can be changed to a compatible model with image input and structured Responses output. The model receives the uploaded image/description for cards and the seeking prompt for moves. Audio is never uploaded. Model failures and malformed responses fall back to offline rules and are labelled.
 
-## Play
+## Anonymous joining and capacity
 
-- **One minute; surviving pets win.** The server starts the 60-second deadline when the initial hiding step completes. At zero, ready pets with usage above zero win for their owners; ties share the win and zero survivors means no winner. Capturing Todd no longer ends the hunt, and rounds can continue until the deadline. Ten human seekers stay human-controlled. Todd is a separate shadow, rendered as a dark dot with white eyes.
+Players do not need a ChatGPT account or Sign in with ChatGPT. Joining creates an anonymous game session; host controls and pet ownership still use separate session credentials. On ChatGPT Sites, the hosting audience must also allow public access for signed-out visitors; a platform sign-in gate is separate from the game code.
+
+Rooms admit up to 300 players, including concurrent joins. The shared-IP join budget allows 600 attempts per minute, separately from the 40-per-minute room-creation budget, so venue Wi-Fi does not stop at 40 players. This raises admission capacity; it is not evidence of 300-phone rendering or continuous-movement performance.
+
+## Hunt mode (`/hunt`)
+
+- **One minute; surviving pets win.** The server starts the 60-second deadline when the initial hiding step completes. At zero, ready pets with usage above zero win for their owners; ties share the win and zero survivors means no winner. Capturing Todd no longer ends the hunt, and rounds can continue until the deadline. Up to 300 human seekers stay human-controlled. Todd is a separate shadow, rendered as a dark dot with white eyes.
 - Each pet has **20 points** split across flight, smallness, speed, climb and swim, with each stat between 1 and 8. A score of 5 unlocks that stat's room. Higher smallness means better access to narrow gaps. Speed also decides resolution order.
-- Todd starts from a seeker's card, redistributing points until its unlocked abilities differ from every original seeker. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
+- Todd starts from a seeker's card, preferring an ability combination that differs from every original seeker. If the crowd covers every combination, Todd receives a distinct stat allocation under the same 20-point budget. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
 - Each **player** submits one action per round, even if they own a baby. Seeking costs 10 usage. Prompts rotate through eight words, emoji only, two rhyming lines, then eight words.
 - The host resolves submitted moves together. Missing players rest; the host confirms before skipping them. Refreshing a tab restores its session and the latest room state.
 - Bottles cost another 25 usage and disappear after triggering. The red Tibo reset beneath his tavern portrait restores usage to 100 for the first searching pet each hunt. The vet restores up to 50, even from zero. Healing never grants another action.
@@ -52,24 +62,26 @@ Drag the castle to orbit; scroll or pinch to zoom. Click a room marker or open *
 
 When any pet enters an interior location, the upper castle lifts and fades to reveal furnished rooms. It closes when every pet leaves. **Look inside** previews the cutaway without moving a pet. Pet and roof animation respect reduced-motion preferences.
 
+The shared world reuses the existing 3D castle. The phone controller includes a lightweight position map.
+
 Resolved moves follow world-space routes through the grounds, terrace, entrance and corridor. Flight routes rise above the building; speed changes travel time. Jointed 3D legs, distance-driven strides, wingbeats, smooth turns, route lines and name tags make journeys visible. All 42 destinations share the same coordinate layout as the rendered rooms and gardens. The host's **Next round** waits for the local travel animation to finish. Todd appears in the lobby and at the round reveal; its active hiding location remains excluded from client state. See [movement notes](docs/MOVEMENT.md) for controls, implementation boundaries and verification.
 
-The 2D prototype and its engine have been removed. The 3D game is the only experience.
+
 
 ## Checks and production build
 
 ```bash
-npm test          # game rules, transport, movement and sprite frames
+npm test          # game rules, admission, movement, sprites and shared-world transport
 npm run typecheck
-npm run build
+npm run build:local
 npm start         # serves dist and the room server at http://localhost:4174
 ```
 
-`npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. This project has not been deployed.
+`npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. The Sites deployment uses `npm run build`; its shared-world API is independent of the local Node hunt server.
 
-The server finishes at the deadline even without connected clients. Reconnecting restores the original deadline; late model responses cannot change a finished hunt. An action still waiting on the model at the bell is not applied.
+The server finishes hunt mode at the deadline even without connected clients. Reconnecting restores the original deadline; late model responses cannot change a finished hunt. An action still waiting on the model at the bell is not applied.
 
-Rooms, uploaded images, and reconnect identities are in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. This is a LAN hackathon build, without accounts or durable persistence.
+The local server keeps the shared world, rooms, uploaded images, and reconnect identities in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. Local play requires a reachable server. Production uses only ChatGPT Sites hosting and its managed database; see [shared-world deployment](docs/SHARED_WORLD.md).
 
 Verified and pending checks are in [PLAN.md](PLAN.md), with details in [docs/VERIFICATION.md](docs/VERIFICATION.md). Live model calls still need a working key. Physical-phone networking and microphone hardware require venue/device testing. Usage is fictional game health, not OpenAI account credit.
 

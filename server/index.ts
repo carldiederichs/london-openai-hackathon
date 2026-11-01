@@ -1,4 +1,5 @@
 import express from "express";
+import { attachWorld } from "./world.ts";
 import { createServer } from "node:http";
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
@@ -7,7 +8,7 @@ import { Server } from "socket.io";
 import { config } from "dotenv";
 import { createBrain, type Brain } from "./brain.ts";
 import { Rooms } from "./rooms.ts";
-import type { Session } from "../src/live/shared.ts";
+import { MAX_PLAYERS, type Session } from "../src/live/shared.ts";
 
 config({ path: ".env.local", quiet: true });
 config({ quiet: true });
@@ -46,17 +47,20 @@ export function createGameServer(
     }),
   );
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
-  // Bound model usage without logging player images or prompts. Ten phones may share an IP.
+  // Venue phones may share one IP. Budget joins separately from room creation
+  // and leave room for retries without removing either rate limit.
   const requests = new Map<string, { time: number; count: number }>();
   app.use("/api/rooms", (req, res, next) => {
     if (req.method !== "POST") return next();
     const now = Date.now();
     for (const [key, value] of requests)
       if (now - value.time > 60_000) requests.delete(key);
-    const key = req.ip || "unknown",
+    const joining = /^\/[A-Za-z0-9]{6}\/join\/?$/.test(req.path);
+    const limit = joining ? MAX_PLAYERS * 2 : 40;
+    const key = `${req.ip || "unknown"}:${joining ? "join" : "create"}`,
       count = requests.get(key) || { time: now, count: 0 };
     requests.set(key, count);
-    if (++count.count > 40) {
+    if (++count.count > limit) {
       res.status(429).json({
         ok: false,
         error: "Too many requests. Wait a minute and try again.",
@@ -93,6 +97,7 @@ export function createGameServer(
     res.setHeader("Cache-Control", "private, max-age=3600");
     res.send(Buffer.from(data, "base64"));
   });
+  const liveWorld = attachWorld(app, io);
   const connections = new Map<string, Set<string>>();
   io.use((socket, next) => {
     try {
@@ -175,6 +180,7 @@ export function createGameServer(
     rooms,
     close: () => {
       clearInterval(expiryTimer);
+      liveWorld.close();
       return new Promise<void>((done) =>
         io.close(() => http.close(() => done())),
       );

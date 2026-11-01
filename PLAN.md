@@ -143,6 +143,18 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
       out of that room; verify the charge cannot be claimed twice and replenishes
       on a new hunt. All 16 tests and production build pass.
 
+
+## Crowd admission and anonymous joining
+
+- [x] Raise the shared server/UI player cap to 300; allow up to 600 total pets including babies.
+- [x] Separate the shared-IP join budget (600 attempts per minute) from room creation (40 per minute).
+- [x] Keep joining anonymous without ChatGPT sign-in, while retaining player ownership and host session authorization.
+- [x] Handle a crowd covering all Todd ability combinations by choosing a distinct full stat allocation within the 20-point budget.
+- [x] Verify 300 same-IP anonymous HTTP joins, rejection of player 301, full-room start/breeding, all 18 tests, TypeScript and production build.
+- [ ] Identify the published Promptkeep Site before changing its hosting audience. No Promptkeep Site or repository hosting ID was found in the connected account; unrelated Sites were left unchanged.
+- [ ] Test 300 simultaneous rendered phone sessions and continuous movement separately; admission tests do not establish those performance results.
+
+The user requested ongoing pulls. A five-minute sync check uses fast-forward-only pulls and preserves local changes; it does not deploy or overwrite conflicting edits.
 ## Current integration: Max's PR and one coherent castle
 
 - [x] Integrate PR #2's practice hunt, Codex sprite importer and elapsed-time journeys while preserving 3D animal bodies, portraits, Tibo reset and care mechanics.
@@ -161,6 +173,16 @@ Multiple playable floors, cellars as a separate floor and floor cycling are supe
 ## Room flicker repair
 
 - [x] Removed duplicate passage slabs and separated overlapping gallery/room floor heights. Inspected the cutaway at close zoom and multiple camera angles; TypeScript and production build pass.
+
+
+## Shared castle and phone controls
+
+- [x] One shared world at `/`, with QR joining at `/join`; retain `/hunt` and `/practice`.
+- [x] Five existing ChatGPT pets, swipe selection, own-image and pet-sheet upload.
+- [x] Large arrow controls with hold/release movement, reconnect and session ownership.
+- [x] Merge latest main `b61a636` while preserving the capacity work.
+- [x] Verify 30 tests, typecheck, production build, all five loaded portraits and movement of the same rendered pet from a phone input.
+- [ ] Deploy the Cloudflare Worker and public ChatGPT Site, then test venue phones and 300 live connections.
 
 ## One-minute survival and minimal interface
 
@@ -189,4 +211,11 @@ This supersedes turn-by-turn prompts and the ten-player cap. Preserve the mansio
 - [ ] Preserve two-place mating, shared pet ownership, vet/bottles/reset and connected castle routes in real-time play.
 - [ ] Batch updates and load-test 300 simultaneous WebSocket clients; report local measurements and distinguish venue/device capacity.
 - [ ] Browser-check host + multiple phone controllers, movement, joining/reconnect, hidden Dot and both endings. Push verified changes to main.
-- [ ] **Waiting** — review and selectively integrate Owen's changes when available; no branch or PR supplied yet.
+- [x] Owen’s shared-world implementation is available in draft PR #3; this branch integrates the latest main while retaining the shared castle and mobile controls.
+
+
+## Shared-world branch integration
+
+- [x] Merge team main `751aeae` without changing the root shared-world or `/join` experience; retain latest hunt survival and mating rules at `/hunt`.
+- [x] Verify 300 simultaneously connected WebSocket controllers moving and stopping on one screen, with per-phone state isolation. Admission uses bounded bursts; venue phones and Cloudflare still need separate checks.
+- [x] Serve the merged original repository at localhost:4177, replacing the temporary preview copy.

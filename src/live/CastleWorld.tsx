@@ -1764,6 +1764,10 @@ export default function CastleWorld(props: Props) {
           item.effectStamp = p.effect?.at;
           item.effectElapsed = 0;
         }
+        if (p.position) {
+          item.target.set(p.position.x, 0.8, p.position.z);
+          item.journey = undefined;
+        }
         const stats = (p as Pet & { stats?: { smallness: number } }).stats;
         const petScale =
           (p.baby ? 0.8 : 1.25) * (stats ? 1.25 - stats.smallness * 0.065 : 1);
@@ -1993,7 +1997,7 @@ export default function CastleWorld(props: Props) {
       for (const [id, p] of petObjects) {
         const pet = p.object.userData.pet as Pet;
         beforePosition.copy(p.object.position);
-        let moving = false;
+        let moving = !!pet.moving;
         if (p.journey) {
           p.elapsed = media.matches ? p.journey.duration : p.elapsed + step;
           const sample = sampleJourney(p.journey, p.elapsed);

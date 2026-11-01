@@ -65,6 +65,21 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
 - All 16 tests pass, including two simultaneous tavern visitors and recharge after
   restart. TypeScript and production build pass.
 
+
+## 300-player admission update — 2026-11-01
+
+Verified against main at `3762e57` plus the local capacity changes. All 18 tests, TypeScript checks, the production build and diff whitespace checks pass.
+
+The HTTP test joins 300 anonymous players from one loopback IP in batches of 20 concurrent requests, verifies that player 301 is rejected, starts the full room, and resolves reciprocal breeding to create pet 301. A separate test fills all 25 possible unlocked-ability combinations and confirms Todd still receives a legal, distinct 20-point stat card.
+
+Joining has no ChatGPT account, cookie or authorization-header requirement. Existing player session tokens and host-only controls remain enforced. The connected Sites inventory contained no Promptkeep Site, so no published Site access policy was changed.
+
+These checks establish admission and rule behavior, not 300 simultaneous WebSocket clients, physical-phone rendering, venue Wi-Fi capacity or continuous movement performance.
+
+
+## Shared castle and phone arrows
+
+Added a single anonymous shared world with a 300-player cap, five swipeable ChatGPT sample pets, image/sprite-sheet upload, hold-to-move phone arrows and QR joining. Unit checks cover admission, session isolation, stale input, stopping and mansion collision. The HTTP/Socket.IO integration test proves phone input changes the same pet on a separate screen connection. Browser testing confirmed holding the right arrow changes the controller position marker. The final integrated checkout at `b61a636` plus these local changes passes all 30 tests, TypeScript and production build. All five official sample images load; the Next button changes the selected pet. Holding Right moved the big-screen rendered actor from x=-9 to x=-5.08. Cloudflare Durable Object deployment and 300 physical devices remain pending.
 ### Single-floor courtyard castle and Max PR integration — 1 November 2026
 
 This supersedes the earlier multi-floor layout and its floor controls.
@@ -94,3 +109,15 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - Phone seeker at 390px: document width 390px, clock and essential controls visible. TypeScript and production build pass; Three.js lazy bundle size advisory remains. Real API, microphone, physical phone and CI permission checks remain external.
 
 - Live browser reached 0:00 and awarded Dewey; practice reached 0:00 and listed ten surviving pets. Play again restored 1:00 and original usage in practice, and preserved the live player in a fresh lobby.
+
+
+## Latest-main integration and live crowd check — 1 November 2026
+
+Merged `751aeae` into `feat/shared-castle-mobile-controls`, retaining the shared-world root/phone routes, five sample pets and 300-player admission while adopting the latest hunt timer, mating rules and castle rendering. Shutdown now clears both the hunt expiry timer and shared-world ticker. The full-room admission test uses the current hunt rules; the upstream mating tests cover replacement of both parents with their shared pet.
+
+A new integration scenario joins 300 guests in bounded HTTP bursts, holds 300 real WebSocket phone connections open simultaneously, checks that each phone receives only its own pet, and verifies that the shared screen receives movement and stopping for every pet. One isolated localhost run connected all controllers in 146 ms and observed all movement at the screen in 64 ms. These are local observations, not venue, physical-phone, 300-pet browser rendering or Cloudflare performance guarantees. A burst of 300 simultaneous HTTP connection attempts exceeded the local socket backlog, so admission is batched; all 300 WebSockets are live together during movement.
+
+
+## Sites-only hosting
+
+Added a Sites Worker with a managed D1 database and generated schema migrations, atomic 300-slot admission, token ownership, sequenced input, collision and stale-input stopping. The frontend uses same-origin HTTP state updates in Sites builds. The SQL-backed tests run concurrent 301 joins (300 admitted, one rejected), isolate phone ownership, reject another pet’s token and stale packets, verify movement across requests and stopping, and free a slot on leave. The 41-test suite passes. No personal Cloudflare account is used. Hosted latency and 300-player throughput must be measured separately.
