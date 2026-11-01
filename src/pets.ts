@@ -7,6 +7,8 @@ export type Pet = {
   color: string;
   usage: number;
   location: string;
+  position?: { x: number; z: number };
+  moving?: boolean;
   acted: boolean;
   image?: string;
   /** Codex atlas: 8 columns; 9 standard rows or 11 including look directions. */

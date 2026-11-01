@@ -5,6 +5,8 @@ import {
   ADVANTAGES,
   balanceStats,
   LIVE_LOCATIONS,
+  MAX_PETS,
+  MAX_PLAYERS,
   STAT_KEYS,
   validatePrompt,
   type CheerResult,
@@ -52,6 +54,9 @@ const signature = (stats: Stats) =>
 export function toddStats(pets: LivePet[]): Stats {
   const used = new Set(pets.map((p) => signature(p.stats)));
   const candidates: Stats[] = [];
+  const cardKey = (stats: Stats) =>
+    STAT_KEYS.map((key) => stats[key]).join(",");
+  const usedCards = new Set(pets.map((pet) => cardKey(pet.stats)));
   for (let a = 1; a <= 8; a++)
     for (let b = 1; b <= 8; b++)
       for (let c = 1; c <= 8; c++)
@@ -65,18 +70,24 @@ export function toddStats(pets: LivePet[]): Stats {
             climb: d,
             swim: e,
           };
-          if (signature(stats) && !used.has(signature(stats)))
-            candidates.push(stats);
+          if (signature(stats)) candidates.push(stats);
         }
-  if (!candidates.length)
-    throw new Error("No distinct Todd card is available.");
-  // Shadow one seeker, redistributing the fewest points needed to unlock a
-  // different set of abilities from every member of the party.
+  const distinctAbilities = candidates.filter(
+    (stats) => !used.has(signature(stats)),
+  );
+  // A crowd can cover every ability combination. Keep Todd's full stat card
+  // distinct instead, so a full room can still start a balanced hunt.
+  const available = distinctAbilities.length
+    ? distinctAbilities
+    : candidates.filter((stats) => !usedCards.has(cardKey(stats)));
+  if (!available.length) throw new Error("No distinct Todd card is available.");
+  // Shadow one seeker with the nearest distinct card, preferring a
+  // different set of unlocked abilities whenever one remains available.
   const source = pets[Math.floor(Math.random() * pets.length)].stats;
   const distance = (s: Stats) =>
     STAT_KEYS.reduce((sum, k) => sum + Math.abs(s[k] - source[k]), 0);
-  const nearest = Math.min(...candidates.map(distance));
-  const shadows = candidates.filter((s) => distance(s) === nearest);
+  const nearest = Math.min(...available.map(distance));
+  const shadows = available.filter((s) => distance(s) === nearest);
   return shadows[Math.floor(Math.random() * shadows.length)];
 }
 export class Rooms {
@@ -170,8 +181,8 @@ export class Rooms {
     const room = this.get(code);
     if (room.phase !== "lobby")
       throw new Error("This hunt has started. Join the next one.");
-    if (room.players.length + room.joining >= 10)
-      throw new Error("All ten player slots are taken.");
+    if (room.players.length + room.joining >= MAX_PLAYERS)
+      throw new Error(`All ${MAX_PLAYERS} player slots are taken.`);
     if (
       !input ||
       typeof input.name !== "string" ||
@@ -361,10 +372,10 @@ export class Rooms {
         !partner ||
         pet.usage < 20 ||
         partner.usage < 20 ||
-        room.pets.length >= 20
+        room.pets.length >= MAX_PETS
       )
         throw new Error(
-          "Choose another player’s ready pet. Both parents need 20 usage; party limit is 20.",
+          `Choose another player’s ready pet. Both parents need 20 usage; party limit is ${MAX_PETS}.`,
         );
       room.submissions[verified.playerId!] = {
         type: "breed",
@@ -498,7 +509,7 @@ export class Rooms {
           );
           if (
             !other ||
-            room.pets.length >= 20 ||
+            room.pets.length >= MAX_PETS ||
             other.pet.usage < 20 ||
             pet.usage < 20
           ) {

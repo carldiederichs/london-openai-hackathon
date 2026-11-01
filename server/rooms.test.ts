@@ -3,9 +3,15 @@ import assert from "node:assert/strict";
 import { io as connect, type Socket } from "socket.io-client";
 import { once } from "node:events";
 import { createBrain, fallbackCard, type Brain } from "./brain.ts";
-import { Rooms } from "./rooms.ts";
+import { Rooms, toddStats } from "./rooms.ts";
 import { createGameServer } from "./index.ts";
-import { accessible, STAT_KEYS, type Session } from "../src/live/shared.ts";
+import {
+  accessible,
+  balanceStats,
+  MAX_PLAYERS,
+  STAT_KEYS,
+  type Session,
+} from "../src/live/shared.ts";
 import { ROOM_LORE } from "../src/live/lore.ts";
 
 function brain(): Brain {
@@ -84,10 +90,10 @@ async function setup(count = 2) {
   return { rooms, model, host, players, room: rooms.get(host.roomCode) };
 }
 test("lobby capacity, identity, room isolation and public secret filtering", async () => {
-  const { rooms, host, players, room } = await setup(10);
+  const { rooms, host, players, room } = await setup(MAX_PLAYERS);
   await assert.rejects(
     rooms.join(host.roomCode, { name: "Extra", description: "cat" }),
-    /ten/,
+    new RegExp(String(MAX_PLAYERS)),
   );
   assert.throws(
     () => rooms.authenticate(rooms.create().roomCode, players[0].token),
@@ -552,4 +558,94 @@ test("Tibo's tavern button restores only the first visitor each hunt", async () 
   rooms.restart(host);
   await rooms.start(host);
   assert.equal(room.reset, "tavern");
+});
+
+test("a crowd covering every ability combination still gets a distinct balanced Todd card", async () => {
+  const { room } = await setup();
+  const pets = Array.from({ length: 31 }, (_, i) => i + 1)
+    .filter((mask) => mask.toString(2).replaceAll("0", "").length <= 3)
+    .map((mask) => ({
+      ...room.pets[0],
+      id: `crowd-${mask}`,
+      stats: balanceStats(
+        Object.fromEntries(
+          STAT_KEYS.map((key, bit) => [key, mask & (1 << bit) ? 8 : 1]),
+        ),
+      ),
+    }));
+  const signature = (stats: (typeof pets)[number]["stats"]) =>
+    STAT_KEYS.filter((key) => stats[key] >= 5).join(",");
+  assert.equal(new Set(pets.map((pet) => signature(pet.stats))).size, 25);
+  const shadow = toddStats(pets);
+  assert.equal(
+    Object.values(shadow).reduce((sum, value) => sum + value, 0),
+    20,
+  );
+  assert.ok(Object.values(shadow).every((value) => value >= 1 && value <= 8));
+  assert.ok(
+    pets.every((pet) =>
+      STAT_KEYS.some((key) => pet.stats[key] !== shadow[key]),
+    ),
+  );
+});
+
+test("300 anonymous HTTP joins from one IP succeed and player 301 is rejected", async (t) => {
+  const server = createGameServer(brain());
+  server.http.listen(0, "127.0.0.1");
+  await once(server.http, "listening");
+  t.after(() => server.close());
+  const { port } = server.http.address() as { port: number };
+  const post = async (path: string, body: unknown) => {
+    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return response.json();
+  };
+  const created = await post("/api/rooms", {});
+  assert.equal(created.ok, true);
+  const host: Session = created.data;
+  for (let offset = 0; offset < MAX_PLAYERS; offset += 20) {
+    const batch = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        post(`/api/rooms/${host.roomCode}/join`, {
+          name: `Phone ${offset + i + 1}`,
+          description: "a tiny flying owl",
+        }),
+      ),
+    );
+    assert.ok(
+      batch.every((reply) => reply.ok),
+      JSON.stringify(batch.find((reply) => !reply.ok)),
+    );
+  }
+  const room = server.rooms.get(host.roomCode);
+  assert.equal(room.players.length, MAX_PLAYERS);
+  const overflow = await post(`/api/rooms/${host.roomCode}/join`, {
+    name: "Overflow",
+    description: "cat",
+  });
+  assert.equal(overflow.ok, false);
+  assert.match(overflow.error, new RegExp(String(MAX_PLAYERS)));
+  await server.rooms.start(host);
+  const parents = room.pets.slice(0, 2);
+  for (let i = 0; i < 2; i++) {
+    const player = room.players.find(
+      (member) => member.id === parents[i].ownerId,
+    )!;
+    const session = server.rooms.authenticate(host.roomCode, player.token);
+    server.rooms.submit(
+      session,
+      {
+        type: "breed",
+        petId: parents[i].id,
+        partnerId: parents[1 - i].id,
+      },
+      1,
+      1,
+    );
+  }
+  await server.rooms.resolve(host, 1, 1);
+  assert.equal(room.pets.length, MAX_PLAYERS + 1);
 });

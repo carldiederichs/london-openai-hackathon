@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "promptkeep-world",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": {
+    "bindings": [{ "name": "WORLD", "class_name": "CastleWorldDO" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CastleWorldDO"] }],
+  "vars": { "ALLOWED_ORIGINS": "" },
+}

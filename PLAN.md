@@ -143,6 +143,18 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
       out of that room; verify the charge cannot be claimed twice and replenishes
       on a new hunt. All 16 tests and production build pass.
 
+
+## Crowd admission and anonymous joining
+
+- [x] Raise the shared server/UI player cap to 300; allow up to 600 total pets including babies.
+- [x] Separate the shared-IP join budget (600 attempts per minute) from room creation (40 per minute).
+- [x] Keep joining anonymous without ChatGPT sign-in, while retaining player ownership and host session authorization.
+- [x] Handle a crowd covering all Todd ability combinations by choosing a distinct full stat allocation within the 20-point budget.
+- [x] Verify 300 same-IP anonymous HTTP joins, rejection of player 301, full-room start/breeding, all 18 tests, TypeScript and production build.
+- [ ] Identify the published Promptkeep Site before changing its hosting audience. No Promptkeep Site or repository hosting ID was found in the connected account; unrelated Sites were left unchanged.
+- [ ] Test 300 simultaneous rendered phone sessions and continuous movement separately; admission tests do not establish those performance results.
+
+The user requested ongoing pulls. A five-minute sync check uses fast-forward-only pulls and preserves local changes; it does not deploy or overwrite conflicting edits.
 ## Current integration: Max's PR and one coherent castle
 
 - [x] Integrate PR #2's practice hunt, Codex sprite importer and elapsed-time journeys while preserving 3D animal bodies, portraits, Tibo reset and care mechanics.
@@ -161,3 +173,13 @@ Multiple playable floors, cellars as a separate floor and floor cycling are supe
 ## Room flicker repair
 
 - [x] Removed duplicate passage slabs and separated overlapping gallery/room floor heights. Inspected the cutaway at close zoom and multiple camera angles; TypeScript and production build pass.
+
+
+## Shared castle and phone controls
+
+- [x] One shared world at `/`, with QR joining at `/join`; retain `/hunt` and `/practice`.
+- [x] Five existing ChatGPT pets, swipe selection, own-image and pet-sheet upload.
+- [x] Large arrow controls with hold/release movement, reconnect and session ownership.
+- [x] Merge latest main `b61a636` while preserving the capacity work.
+- [x] Verify 30 tests, typecheck, production build, all five loaded portraits and movement of the same rendered pet from a phone input.
+- [ ] Deploy the Cloudflare Worker and public ChatGPT Site, then test venue phones and 300 live connections.

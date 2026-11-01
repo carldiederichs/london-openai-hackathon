@@ -1,5 +1,8 @@
 import { LOCATIONS, type Pet } from "../pets";
 
+export const MAX_PLAYERS = 300;
+export const MAX_PETS = MAX_PLAYERS * 2;
+
 export const STAT_KEYS = [
   "flight",
   "smallness",

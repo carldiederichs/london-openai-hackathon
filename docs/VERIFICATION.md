@@ -65,6 +65,21 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
 - All 16 tests pass, including two simultaneous tavern visitors and recharge after
   restart. TypeScript and production build pass.
 
+
+## 300-player admission update — 2026-11-01
+
+Verified against main at `3762e57` plus the local capacity changes. All 18 tests, TypeScript checks, the production build and diff whitespace checks pass.
+
+The HTTP test joins 300 anonymous players from one loopback IP in batches of 20 concurrent requests, verifies that player 301 is rejected, starts the full room, and resolves reciprocal breeding to create pet 301. A separate test fills all 25 possible unlocked-ability combinations and confirms Todd still receives a legal, distinct 20-point stat card.
+
+Joining has no ChatGPT account, cookie or authorization-header requirement. Existing player session tokens and host-only controls remain enforced. The connected Sites inventory contained no Promptkeep Site, so no published Site access policy was changed.
+
+These checks establish admission and rule behavior, not 300 simultaneous WebSocket clients, physical-phone rendering, venue Wi-Fi capacity or continuous movement performance.
+
+
+## Shared castle and phone arrows
+
+Added a single anonymous shared world with a 300-player cap, five swipeable ChatGPT sample pets, image/sprite-sheet upload, hold-to-move phone arrows and QR joining. Unit checks cover admission, session isolation, stale input, stopping and mansion collision. The HTTP/Socket.IO integration test proves phone input changes the same pet on a separate screen connection. Browser testing confirmed holding the right arrow changes the controller position marker. The final integrated checkout at `b61a636` plus these local changes passes all 30 tests, TypeScript and production build. All five official sample images load; the Next button changes the selected pet. Holding Right moved the big-screen rendered actor from x=-9 to x=-5.08. Cloudflare Durable Object deployment and 300 physical devices remain pending.
 ### Single-floor courtyard castle and Max PR integration — 1 November 2026
 
 This supersedes the earlier multi-floor layout and its floor controls.

@@ -1,6 +1,6 @@
 # Live game design
 
-The sole game mode uses four rounds and one capture to win; the earlier 2D prototype was removed. Ten human players remain seekers. Todd is a shadow of a randomly chosen seeker, with the nearest distinct ability allocation under the same 20-point budget. Its appearance is an OpenAI-style dot, not a copy of the seeker's sprite.
+The sole game mode uses four rounds and one capture to win; the earlier 2D prototype was removed. Up to 300 human players remain seekers. Todd is a shadow of a randomly chosen seeker, with the nearest distinct ability allocation under the same 20-point budget. When a large crowd covers every ability combination, it uses a distinct full stat allocation instead. Its appearance is an OpenAI-style dot, not a copy of the seeker's sprite.
 
 The server owns game state. Clients receive public pet cards, connection/submission status, audience results and resolved events. They never receive active hiding locations, current submitted prompts, traps, reset placement or other clients' credentials. Host and player sessions authenticate separately.
 
