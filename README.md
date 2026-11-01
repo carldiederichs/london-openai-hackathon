@@ -32,7 +32,7 @@ Add `OPENAI_API_KEY` to `.env.local` locally, then restart `npm run dev`. Never 
 - Todd starts from a seeker's card, redistributing points until its unlocked abilities differ from every original seeker. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
 - Each **player** submits one action per round, even if they own a baby. Seeking costs 10 usage. Prompts rotate through eight words, emoji only, two rhyming lines, then eight words.
 - The host resolves submitted moves together. Missing players rest; the host confirms before skipping them. Refreshing a tab restores its session and the latest room state.
-- Bottles cost another 25 usage and disappear after triggering. The hidden Tibo reset restores usage to 100 once. The vet restores up to 50, even from zero. Healing never grants another action.
+- Bottles cost another 25 usage and disappear after triggering. The red Tibo reset beneath his tavern portrait restores usage to 100 for the first searching pet each hunt. The vet restores up to 50, even from zero. Healing never grants another action.
 - Breeding needs reciprocal requests from two players. Both parents spend 20 usage and their actions. The faster parent owns the baby; ties use a stable pet ID ordering. The baby can act next round. A room can grow to 20 pets.
 - Todd's current location and private game objects are excluded from client state. A brief fictional move summary and its previous location appear after resolution. Todd moves again before the next round opens.
 
@@ -53,7 +53,7 @@ The 2D prototype and its engine have been removed. The 3D game is the only exper
 ## Checks and production build
 
 ```bash
-npm test          # 15 live engine, transport, and Socket.IO integration tests
+npm test          # 16 live engine, transport, and Socket.IO integration tests
 npm run typecheck
 npm run build
 npm start         # serves dist and the room server at http://localhost:4174
@@ -83,14 +83,19 @@ Click the light rings to select destinations. Hover shows access rules and a des
 
 Large pets (smallness 3 or less) reach the belfry rope; tiny pets reach burrows and drains. Water rooms require swimming, high rooms require flight, and cats, owls and ghosts have night vision for the crypt and cold storage. Some specialist destinations require 6 rather than 5 points. Cards retain the 20-point budget.
 
-The nursery reveals a bed with an animated duvet and floating hearts during reciprocal breeding. The clinic reveals a treatment table, IV stand and healing cross. Hidden Temperature 2.0 bottles cost 25 extra usage, make pets visibly tipsy, and reduce move priority by 2 without changing room access. Tipsiness lasts until the vet, Tibo reset, or a new hunt; babies do not inherit it. Discovered bottles and the reset button appear briefly beside the discovering pet. Their hidden locations remain server-only.
+The nursery reveals a bed with an animated duvet and floating hearts during reciprocal breeding. The clinic reveals a treatment table, IV stand and healing cross. Hidden Temperature 2.0 bottles cost 25 extra usage, make pets visibly tipsy, and reduce move priority by 2 without changing room access. Tipsiness lasts until the vet, Tibo reset, or a new hunt; babies do not inherit it. Discovered bottles and the reset button appear briefly beside the discovering pet. Bottle locations remain server-only; the reset now lives beneath Tibo’s tavern portrait.
 
 Sixteen original fictional pixel-pet ancestor portraits hang across the rooms. Select Hallucination Hall to inspect their histories. Petdex shows each current pet's card, traits, lineage and reachable places, with a link to the external Petdex gallery. No external pet downloads or account installs are automatic.
 
 The hedge silhouette uses the [OpenAI icon from Bootstrap Icons](https://icons.getbootstrap.com/icons/openai/), with its MIT license included in `public/bootstrap-icons-LICENSE.txt`. Portrait art was generated specifically for this game.
 
-The ground-floor tavern includes a framed photograph of Thibault “Tibo” Sottiaux,
-with the fictional game plaque “Keeper of the Reset”. Photo source:
+The ground-floor tavern includes a framed pixel-art portrait of Thibault “Tibo” Sottiaux,
+with the fictional game plaque “Keeper of the Reset”. Generated with the built-in image tool to match the pet portraits; identity reference:
 [Tibo's public GitHub profile](https://github.com/thsottiaux)
 ([original avatar](https://github.com/thsottiaux.png), retrieved 1 November 2026).
-The photo is separate from the generated pet art; no endorsement is implied.
+The source photo is retained as a reference; no endorsement is implied.
+
+Portrait generation prompt: preserve Tibo’s recognizable face, smile and head tilt;
+match the pet atlas’s chunky pixel art, warm candlelight, dark mansion backdrop
+and antique clothing. One square bust, no text or frame.
+Asset: `public/tibo-pixel.png`.

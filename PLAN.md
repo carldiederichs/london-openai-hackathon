@@ -137,3 +137,8 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 
 - [x] Add Tibo's actual photograph in a brass frame in the ground-floor tavern,
       with a “Keeper of the Reset” plaque and room lore. Record the photo source.
+- [x] Restyle Tibo to match the pixel-pet portraits, retaining the right-hand frame.
+- [x] Add a visible red reset beneath the portrait. Searching the tavern activates
+      one shared charge per hunt, restores 100 usage and cures tipsiness. Keep traps
+      out of that room; verify the charge cannot be claimed twice and replenishes
+      on a new hunt. All 16 tests and production build pass.

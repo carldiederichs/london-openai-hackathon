@@ -485,12 +485,12 @@ export default function CastleWorld(props: Props) {
     });
     portraitAtlas.colorSpace = THREE.SRGBColorSpace;
     textures.add(portraitAtlas);
-    // A real guest portrait, separate from the fictional pet ancestor atlas.
+    // A stylized guest portrait, separate from the fictional pet ancestor atlas.
     const tiboPhoto: THREE.Texture = new THREE.Texture(portraitPlaceholder);
     tiboPhoto.colorSpace = THREE.SRGBColorSpace;
     tiboPhoto.needsUpdate = true;
     textures.add(tiboPhoto);
-    new THREE.ImageLoader().load("/tibo.jpg", (loaded) => {
+    new THREE.ImageLoader().load("/tibo-pixel.png", (loaded) => {
       if (disposed) return;
       tiboPhoto.image = loaded;
       tiboPhoto.needsUpdate = true;
@@ -558,6 +558,37 @@ export default function CastleWorld(props: Props) {
         );
         plaque.position.set(x, py - 0.6, pz + 0.09);
         interiors.add(plaque);
+        // Tibo's one-charge reset lives below his portrait. Searching the tavern
+        // activates it through the authoritative room server, like other finds.
+        box(x, 1.45, pz + 0.25, 0.9, 0.65, 0.3, "#454e48");
+        box(x, 1.45, pz + 0.42, 0.72, 0.49, 0.08, "#ae965c");
+        const button = mesh(
+          new THREE.CylinderGeometry(0.24, 0.28, 0.16, 20),
+          "#df493c",
+          [x, 1.45, pz + 0.55],
+        );
+        button.rotation.x = Math.PI / 2;
+        button.material.emissive.set("#6b1008");
+        button.material.emissiveIntensity = 0.35;
+        const resetLabel = document.createElement("canvas");
+        resetLabel.width = 256;
+        resetLabel.height = 64;
+        const resetInk = resetLabel.getContext("2d")!;
+        resetInk.fillStyle = "#ae965c";
+        resetInk.fillRect(0, 0, 256, 64);
+        resetInk.fillStyle = "#30291c";
+        resetInk.font = "bold 36px monospace";
+        resetInk.textAlign = "center";
+        resetInk.fillText("RESET", 128, 44);
+        const resetTexture = new THREE.CanvasTexture(resetLabel);
+        resetTexture.colorSpace = THREE.SRGBColorSpace;
+        textures.add(resetTexture);
+        const resetPlaque = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.72, 0.18),
+          new THREE.MeshBasicMaterial({ map: resetTexture }),
+        );
+        resetPlaque.position.set(x, 1, pz + 0.42);
+        interiors.add(resetPlaque);
       }
     }
     const storeys = new Map<number, THREE.Group>();

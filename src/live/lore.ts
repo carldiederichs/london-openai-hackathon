@@ -147,7 +147,7 @@ export const ROOM_LORE: Record<string, string> = {
     "The model weights are locked inside. The sign says: DO NOT LIFT WITHOUT A GPU.",
   moat: "The streaming buffer is overflowing. A rubber duck offers excellent debugging advice and no refunds.",
   tavern:
-    "Tibo watches from a brass frame: Keeper of the Reset. The pets leave empty token jars beneath his portrait. Please infer responsibly.",
+    "Tibo watches from a brass frame: Keeper of the Reset. Search here to press the red button below his portrait: 100 usage and a clear head for the first pet each hunt.",
   courtyard:
     "The round table has thirteen chairs and a context window for twelve. Someone always gets summarised.",
   cistern:

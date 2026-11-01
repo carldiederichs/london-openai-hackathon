@@ -287,11 +287,13 @@ export class Rooms {
     this.changed(room.code);
     try {
       await this.placeTodd(room);
-      const free = LIVE_LOCATIONS.filter((l) => l.id !== room.dot)
+      const free = LIVE_LOCATIONS.filter(
+        (l) => l.id !== room.dot && l.id !== "tavern",
+      )
         .map((l) => l.id)
         .sort(() => Math.random() - 0.5);
-      room.reset = free[0];
-      room.traps = free.slice(1, 3);
+      room.reset = "tavern";
+      room.traps = free.slice(0, 2);
       room.phase = "seeking";
       this.event(
         room,

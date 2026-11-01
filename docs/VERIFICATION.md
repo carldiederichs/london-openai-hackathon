@@ -52,3 +52,15 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
 - Swapped the adjacent portraits as requested: blue pet left, Tibo right, clear
   of the sideboard. Visually verified in the local browser cutaway.
 - TypeScript and production build pass. No game rules changed.
+
+### Pixel portrait and visible reset — 1 November 2026
+
+- Replaced the displayed photograph with generated pixel art matching the pet atlas;
+  kept Tibo in the right-hand tavern frame. Source and generation prompt in README.
+- Rendered a red reset button and brass RESET plate directly beneath the portrait.
+  Visually inspected both in the browser cutaway.
+- The server now places the single-charge reset in the tavern each hunt and excludes
+  the tavern from bottle placement. The first successful tavern search restores 100
+  usage and clears tipsiness; subsequent visitors receive no further charge.
+- All 16 tests pass, including two simultaneous tavern visitors and recharge after
+  restart. TypeScript and production build pass.

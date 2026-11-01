@@ -6,6 +6,7 @@ import { createBrain, fallbackCard, type Brain } from "./brain.ts";
 import { Rooms } from "./rooms.ts";
 import { createGameServer } from "./index.ts";
 import { accessible, STAT_KEYS, type Session } from "../src/live/shared.ts";
+import { ROOM_LORE } from "../src/live/lore.ts";
 
 function brain(): Brain {
   return {
@@ -456,7 +457,7 @@ test("tipsy pets resolve later without changing room access", async () => {
   assert.equal(room.pets[1].usage, 65);
   assert.equal(room.pets[0].usage, 90);
   assert.equal(
-    room.events.filter((e) => e.text.includes("Temperature 2.0:")).length,
+    room.events.filter((e) => e.text === ROOM_LORE.tavern).length,
     1,
   );
   rooms.restart(host);
@@ -464,4 +465,43 @@ test("tipsy pets resolve later without changing room access", async () => {
     room.pets.some((p) => p.tipsy || p.effect),
     false,
   );
+});
+
+// Exercise the real spawn location and shared single charge, without overriding it.
+test("Tibo's tavern button restores only the first visitor each hunt", async () => {
+  const { rooms, host, players, room } = await setup(2);
+  await rooms.start(host);
+  assert.equal(room.reset, "tavern");
+  assert.ok(!room.traps.includes("tavern"));
+  room.dot = "garden";
+  room.pets.forEach((pet) => {
+    pet.usage = 30;
+    pet.tipsy = true;
+  });
+  players.forEach((player, i) =>
+    rooms.submit(
+      player,
+      {
+        type: "seek",
+        petId: room.pets[i].id,
+        prompt: "tavern",
+      },
+      1,
+      1,
+    ),
+  );
+  await rooms.resolve(host, 1, 1);
+  assert.deepEqual(
+    room.pets.map((pet) => pet.usage).sort((a, b) => a - b),
+    [20, 100],
+  );
+  assert.equal(
+    room.pets.filter((pet) => pet.effect?.kind === "reset").length,
+    1,
+  );
+  assert.equal(room.pets.filter((pet) => pet.tipsy).length, 1);
+  assert.equal(room.reset, null);
+  rooms.restart(host);
+  await rooms.start(host);
+  assert.equal(room.reset, "tavern");
 });
