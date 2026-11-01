@@ -175,7 +175,7 @@ Multiple playable floors, cellars as a separate floor and floor cycling are supe
 - [x] Selectively integrate Max's latest `9fb5bc8` functionality: original companion assets, live picker, optional practice picker and original sprite cadence. Preserve the current world, 3D guardians and all 42 routes.
 - [x] Browser verified Dewey selection/rendering in practice and live joining, balanced card and a live mating-room action.
 - [x] Enlarged/lit Tibo and raised the reset onto a visible plinth. Separated photo planes from frame faces; browser orbit and moving pets show complete, stable portraits.
-- [ ] Run final checks, reconcile docs, push directly to main, verify remote hash and save a local continuity checkpoint. Notion remains paused.
+- [x] Final checks, current docs, direct main push and local checkpoint completed in the publication closeout. Notion remains paused.
 
 ## Real-time crowd game (latest request)
 
@@ -220,8 +220,8 @@ The latest instruction supersedes lobby exploration: controls must remain locked
 - [x] Lock phone movement until Start; hosted matching countdown and Stop/Resume verified.
 - [x] Implement private traitors, collision bans, graveyard relocation, disabled actions and the death message. Automated rules and a public nine-player collision check passed; see exact browser coverage in docs/VERIFICATION.md.
 - [x] Tests, production build, Worker checks and the updated public 301-connection test passed.
-- [ ] Publish the latest backend and Sites frontend, verify the final public URL and phone/host play, then push final source/docs to main and verify the remote hash.
-- [ ] Update README, 90-second demo and verification record for traitors and the published address; save a local checkpoint with readback.
+- [x] Publish backend and Sites frontend, verify the public URL and host/player play, and push the code/docs milestone `7c6bb60` to main with matching remote hash.
+- [x] Update README, demo and verification record; save the sanitized local checkpoint with readback.
 
 Milestone `02e4a49` is already pushed and matches GitHub main. It predates the traitor correction. Public Cloudflare backend and its AI secret are working; the latest Sites frontend is not yet published. Sites source upload is still pending, so publication is not marked complete.
 
@@ -229,4 +229,4 @@ Milestone `02e4a49` is already pushed and matches GitHub main. It predates the t
 
 Live: https://feral-hackathon.sugarybrine.chatgpt.site. Sites version 1 and the latest Durable Object backend are deployed. The detailed evidence is in `docs/VERIFICATION.md` under Published Feral verification. The development chat stopped before final publication; the publishing chat completed it and checked incoming state before handoff. Owen's latest PR branch targets a different Site and separate game implementation, so its hosting identity was not substituted for this selected Feral Site. Compatible contributions already in Feral remain intact.
 
-Source push and sanitized local continuity checkpoint are the final administrative steps. Notion remains paused for this project. Physical-device/venue-network and user-owned microphone checks remain external; GitHub CI installation remains blocked by workflow permission.
+Code/docs milestone `7c6bb60` is pushed and the remote hash matches. Sanitized local checkpoint `3f4d7647-608f-471a-8cc8-eac8439cdfe4` was saved and read back. Notion remains paused for this project. Physical-device/venue-network and user-owned microphone checks remain external; GitHub CI installation remains blocked by workflow permission.
