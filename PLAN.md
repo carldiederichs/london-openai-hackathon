@@ -1,8 +1,8 @@
 # Promptkeep task checklist
 
 This is the authoritative checklist for the hackathon game. `docs/LIVE_GAME.md`
-contains design detail, not a second task list. The first local prototype remains
-reviewable in PR #1. Live-mode changes follow on a separate branch.
+contains design detail, not a second task list. PR #1 records the first local prototype. The latest user instruction is to push
+verified milestones directly to main, superseding the separate live PR plan.
 
 ## Verified milestones
 
@@ -23,8 +23,7 @@ reviewable in PR #1. Live-mode changes follow on a separate branch.
 - [ ] Build a real 3D castle with camera controls, clickable hiding spots, animated pet
       movement, and Todd as an OpenAI-style dot. Check WebGL rendering, location picking,
       phone performance, and a usable fallback when WebGL is unavailable.
-- [ ] Push verified milestones regularly on the live branch; preserve PR #1 as the
-      stable first prototype. Check remote commit identity after each push.
+- [ ] Push verified milestones regularly directly to main. Check remote commit identity after each push.
 
 - [ ] **In progress**: Finalize live rules and keep the prototype's rules explicit.
       Live rules: four rounds, one capture, ten human seekers, and Todd as the AI shadow
@@ -71,7 +70,7 @@ reviewable in PR #1. Live-mode changes follow on a separate branch.
 - [ ] Run final TypeScript checks, tests, production build, and source review. Preserve
       the first prototype's passing behavior alongside live mode.
 - [ ] Update README, setup/fallback instructions, and live-game notes; push the live
-      branch and open its review PR without merging or deploying.
+      work directly to main as requested, without deploying.
 - [ ] Save the final verified status and exact continuation path to shared memory,
       then read it back. Keep any credential/device verification gaps visible.
 
@@ -82,7 +81,7 @@ reviewable in PR #1. Live-mode changes follow on a separate branch.
 - Three rounds / three sightings remains the local prototype rule, not the proposed
   live rule. Do not silently replace the first PR's behavior.
 - Stealth is optional; it is not an extra required stat in the five-stat budget.
-- Hosted deployment, public phone access, repository merge, and teammate invitations
-  were not requested. Local rendering and a reviewable pushed PR are required.
+- Hosted deployment, public phone access, and teammate invitations were not requested.
+  Direct pushes to main are now explicitly requested; they supersede opening a live PR.
 - A stage versus table format and exact demo length remain unconfirmed. Use four
   rounds with explicit host pacing; do not invent a timed demo requirement.
