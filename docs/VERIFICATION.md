@@ -4,7 +4,7 @@ Checked on 2026-11-01. This file records evidence; PLAN.md is the authoritative 
 
 ## Automated
 
-13 tests cover the live game: balanced cards, room gates, ownership, capacity, separate room identities, hidden-state filtering, stale and duplicate actions, single round resolution, capture, escape, reciprocal breeding, baby readiness, trap consumption, reset, vet limits, audience ties/expiry, and rollback after failed asynchronous work.
+15 tests cover the live game: balanced cards, room gates, ownership, capacity, separate room identities, hidden-state filtering, stale and duplicate actions, single round resolution, capture, escape, reciprocal breeding, baby readiness, trap consumption, reset, vet limits, audience ties/expiry, and rollback after failed asynchronous work.
 
 A real HTTP/Socket.IO integration test creates a room, joins a player, rejects player attempts at host controls, checks multiple connections and reconnect, submits a move and resolves a capture. The model adapter tests use the installed OpenAI SDK with a fake transport to exercise strict-schema requests, image input, successful parsing, illegal JSON content, incomplete output, HTTP failures and network errors. These are not live OpenAI calls.
 
@@ -34,3 +34,33 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
 - Microphone hardware testing was explicitly left to the user. The manual path and server comparison rules were checked. On the host's localhost page, start a hunt, choose Measure cheering, allow the microphone, cheer in each three-second window and confirm the displayed result.
 - No physical phone was available to verify the venue network. Scan the QR code from a phone on the same network; verify joining, submitting and reconnecting. If blocked, check the host address and Wi-Fi client isolation.
 - No hosted deployment, durable database, account system, or public internet load test was requested or performed.
+
+## Expanded estate verification
+
+- Final rules suite: 15 tests, including specialist habitat gates, tipsy ordering, cures, clean newborn status, reset cleanup and room lore emitted once. TypeScript and production build pass.
+- Browser exercised reciprocal breeding (80 usage per parent, baby ready next round), clinic healing and a rhyming move to the first-floor observatory. The roof opened and the floor selector followed the pets automatically.
+- Visually inspected the connected estate, logo maze, graveyard, ivory tower, pixel portrait crops, distinct pets, first/second-floor rooms and darker cellars. Room search and direct map selection worked. Floor cycling wrapped Second → Cellars and Cellars → Second.
+- Exterior render draw calls fell from 737 to 225 after static-geometry batching (about 69 percent). This is a renderer work measurement, not a claim of a measured FPS increase on physical phones. Pixel ratio is capped; animation timing uses elapsed seconds; idle duvet geometry no longer recomputes each frame.
+- Viewport checks include 390 × 844 and desktop dimensions. The microphone, actual model requests, physical venue phone and remote CI remain the previously recorded external checks.
+
+- Fresh production render after the final asset-loading fixes reported no console warnings or errors. Portrait textures start with a valid placeholder and the SVG uses an explicit hedge color.
+
+### Tibo portrait — 1 November 2026
+
+- Added the locally served public GitHub avatar of Thibault Sottiaux to the tavern,
+  with a brass frame and fictional “Keeper of the Reset” plaque; source in README.
+- Swapped the adjacent portraits as requested: blue pet left, Tibo right, clear
+  of the sideboard. Visually verified in the local browser cutaway.
+- TypeScript and production build pass. No game rules changed.
+
+### Pixel portrait and visible reset — 1 November 2026
+
+- Replaced the displayed photograph with generated pixel art matching the pet atlas;
+  kept Tibo in the right-hand tavern frame. Source and generation prompt in README.
+- Rendered a red reset button and brass RESET plate directly beneath the portrait.
+  Visually inspected both in the browser cutaway.
+- The server now places the single-charge reset in the tavern each hunt and excludes
+  the tavern from bottle placement. The first successful tavern search restores 100
+  usage and clears tipsiness; subsequent visitors receive no further charge.
+- All 16 tests pass, including two simultaneous tavern visitors and recharge after
+  restart. TypeScript and production build pass.

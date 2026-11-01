@@ -2,11 +2,28 @@
 // Ground pets use the terrace, entrance and corridor instead of crossing walls.
 export type Point = [number, number, number];
 export const POSITIONS: Record<string, Point> = {
+  ballroom: [-7, 4.4, -4],
+  dormitory: [0, 4.4, -4],
+  observatory: [7, 4.4, -4],
+  chapel: [-7, 7.9, -4],
+  serverloft: [0, 7.9, -4],
+  eyrie: [7, 7.9, -4],
+  coldstorage: [-7, 0.9, -4],
+  floodedcellar: [0, 0.9, -4],
+  drain: [7, 0.9, -4],
+  graveyard: [20, 0, 31],
+  ivory: [20, 10, 4],
+  lake: [-18, 0, 24],
+  boathouse: [-13, 0, 29],
+  maze: [14, 0, 24],
+  orchard: [16, 0, 13],
+  glasshouse: [-17, 0, 13],
+  pavilion: [0, 0, 31],
   cistern: [-10, 0, 14],
   rookery: [-10, 7, -7],
   burrow: [10, 0, 7],
   belfry: [10, 4, -8],
-  crypt: [-9, 0.9, -7],
+  crypt: [21, 0, 33],
   garden: [-9, 0, 8],
   tower: [-4.5, 10.4, -3],
   archives: [3.5, 4.5, 0.5],
@@ -20,7 +37,16 @@ export const POSITIONS: Record<string, Point> = {
   nursery: [5, 0, 13],
 };
 export const INTERIORS: Record<string, Point> = {
-  crypt: [-9, 0.9, -7],
+  ballroom: [-7, 4.4, -4],
+  dormitory: [0, 4.4, -4],
+  observatory: [7, 4.4, -4],
+  chapel: [-7, 7.9, -4],
+  serverloft: [0, 7.9, -4],
+  eyrie: [7, 7.9, -4],
+  coldstorage: [-7, 0.9, -4],
+  floodedcellar: [0, 0.9, -4],
+  drain: [7, 0.9, -4],
+
   tavern: [-8.4, 0.9, -3],
   tower: [-4, 0.9, -3],
   archives: [1, 0.9, -3],
@@ -41,6 +67,9 @@ const NODES: Record<string, Point> = {
   atticDoor: [4.6, 0.9, -6],
   bellPath: [12, 0, 1],
   bellStair: [12, 0, -8],
+  firstLanding: [-4, 4.4, -3.7],
+  secondLanding: [-4, 7.9, -3.7],
+  cellarLanding: [-4, 0.9, -4],
 };
 const EDGES = [
   ["camp", "fork"],
@@ -52,7 +81,18 @@ const EDGES = [
   ["corridor", "tower"],
   ["corridor", "west"],
   ["west", "tavern"],
-  ["west", "crypt"],
+  ["corridor", "cellarLanding"],
+  ["cellarLanding", "coldstorage"],
+  ["cellarLanding", "floodedcellar"],
+  ["cellarLanding", "drain"],
+  ["corridor", "firstLanding"],
+  ["firstLanding", "ballroom"],
+  ["firstLanding", "dormitory"],
+  ["dormitory", "observatory"],
+  ["firstLanding", "secondLanding"],
+  ["secondLanding", "chapel"],
+  ["secondLanding", "serverloft"],
+  ["serverloft", "eyrie"],
   ["corridor", "hall"],
   ["hall", "archives"],
   ["hall", "east"],
@@ -68,7 +108,18 @@ const EDGES = [
   ["burrow", "bellPath"],
   ["bellPath", "bellStair"],
   ["bellStair", "belfry"],
-  ["crypt", "rookery"],
+  ["west", "rookery"],
+  ["garden", "glasshouse"],
+  ["cistern", "lake"],
+  ["lake", "boathouse"],
+  ["boathouse", "pavilion"],
+  ["camp", "pavilion"],
+  ["pavilion", "maze"],
+  ["maze", "graveyard"],
+  ["graveyard", "crypt"],
+  ["vet", "orchard"],
+  ["orchard", "maze"],
+  ["orchard", "ivory"],
 ];
 export const distance = (a: Point, b: Point) =>
   Math.hypot(...a.map((v, i) => v - b[i]));
@@ -138,11 +189,12 @@ export function planJourney(
   speed = 4,
 ): Journey {
   const mode =
-    ["tower", "rookery"].includes(to) || ["tower", "rookery"].includes(from)
+    ["tower", "rookery", "ivory", "observatory", "eyrie"].includes(to) ||
+    ["tower", "rookery", "ivory", "observatory", "eyrie"].includes(from)
       ? "fly"
-      : ["moat", "cistern"].includes(to)
+      : ["moat", "cistern", "lake", "floodedcellar"].includes(to)
         ? "swim"
-        : to === "archives" || to === "belfry"
+        : ["archives", "belfry", "serverloft", "orchard"].includes(to)
           ? "climb"
           : "walk";
   let points: Point[];

@@ -259,6 +259,23 @@ export function createBrain(
         };
       } catch {
         const aliases: Record<string, RegExp> = {
+          ballroom: /ballroom|ballroom/iu,
+          dormitory: /dormitory|buffer/iu,
+          observatory: /observatory|observatory/iu,
+          chapel: /chapel|chapel/iu,
+          serverloft: /serverloft|loft/iu,
+          eyrie: /eyrie|eyrie/iu,
+          coldstorage: /coldstorage|storage/iu,
+          floodedcellar: /floodedcellar|cellar/iu,
+          drain: /drain|drain/iu,
+          graveyard: /graveyard|memorials/iu,
+          ivory: /ivory/iu,
+          lake: /lake|lily|reeds/iu,
+          boathouse: /boathouse|boat|dock/iu,
+          maze: /maze|hedge/iu,
+          orchard: /orchard|apple|tree/iu,
+          glasshouse: /glasshouse|greenhouse|potting/iu,
+          pavilion: /pavilion|canopy|cushion/iu,
           cistern: /cistern|flood|reservoir/iu,
           rookery: /rookery|nest|cloud/iu,
           burrow: /burrow|tunnel|gap/iu,

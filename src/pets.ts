@@ -23,6 +23,109 @@ export type Location = {
 };
 export const LOCATIONS: Location[] = [
   {
+    id: "ballroom",
+    name: "Transformer Ballroom",
+    subtitle: "The first-floor dance follows an attention pattern.",
+    region: "north",
+  },
+  {
+    id: "dormitory",
+    name: "Dream Buffer",
+    subtitle: "Tiny pets can slip beneath the four-poster beds.",
+    region: "north",
+  },
+  {
+    id: "observatory",
+    name: "Prediction Observatory",
+    subtitle: "Fly to the open window above the star charts.",
+    region: "north",
+  },
+  {
+    id: "chapel",
+    name: "Alignment Chapel",
+    subtitle: "The second-floor choir is unanimously uncertain.",
+    region: "north",
+  },
+  {
+    id: "serverloft",
+    name: "GPU Loft",
+    subtitle: "Climb the racks to the warmest corner.",
+    region: "north",
+  },
+  {
+    id: "eyrie",
+    name: "Agent Eyrie",
+    subtitle: "Only strong flyers reach the roof hatch.",
+    region: "north",
+  },
+  {
+    id: "coldstorage",
+    name: "Cold Storage",
+    subtitle: "A dark cellar for cats, owls and ghosts with night vision.",
+    region: "north",
+  },
+  {
+    id: "floodedcellar",
+    name: "Flooded Cellar",
+    subtitle: "Swim under the mansion through the old cooling system.",
+    region: "north",
+  },
+  {
+    id: "drain",
+    name: "Context Drain",
+    subtitle: "Squeeze through the lowest maintenance tunnel.",
+    region: "north",
+  },
+  {
+    id: "graveyard",
+    name: "Pet Memorials",
+    subtitle: "Search between the memorial stones of retired companions.",
+    region: "south",
+  },
+  {
+    id: "ivory",
+    name: "Ivory Tower",
+    subtitle: "Fly to the white tower where theories never meet production.",
+    region: "north",
+  },
+  {
+    id: "lake",
+    name: "Latent Lake",
+    subtitle: "Swim through the reeds beneath the lily pads.",
+    region: "south",
+  },
+  {
+    id: "boathouse",
+    name: "Batch Boathouse",
+    subtitle: "Look under the moored boats. Open to every pet.",
+    region: "south",
+  },
+  {
+    id: "maze",
+    name: "OpenAI Knot Maze",
+    subtitle: "Explore the six interwoven paths of the OpenAI knot.",
+    region: "south",
+  },
+  {
+    id: "orchard",
+    name: "Token Orchard",
+    subtitle: "Climb the oldest apple tree to inspect the hollow.",
+    region: "south",
+  },
+  {
+    id: "glasshouse",
+    name: "Gradient Glasshouse",
+    subtitle: "Slip beneath the potting bench through a tiny gap.",
+    region: "south",
+  },
+  {
+    id: "pavilion",
+    name: "Attention Pavilion",
+    subtitle: "Search the cushions beneath the garden canopy.",
+    region: "south",
+  },
+
+  {
     id: "cistern",
     name: "Streaming Cistern",
     subtitle: "Dive beneath the overflow pipes. Swim 5+.",

@@ -1,3 +1,4 @@
+import { ANCESTORS, ROOM_LORE } from "./lore";
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import { PREVIEW_PETS } from "../pets";
@@ -521,9 +522,21 @@ export default function LiveApp() {
     : window.location.origin;
   const toggle = (next: typeof panel) =>
     setPanel((current) => (current === next ? null : next));
+  const [roomQuery, setRoomQuery] = useState("");
   const roomMenu = (
     <div className="glass room-list" aria-label="Castle rooms">
-      {LIVE_LOCATIONS.map((l, i) => {
+      <input
+        aria-label="Find a hiding place"
+        placeholder="Find a place…"
+        value={roomQuery}
+        onChange={(e) => setRoomQuery(e.target.value)}
+      />
+      {LIVE_LOCATIONS.filter((l) =>
+        `${l.name} ${l.subtitle}`
+          .toLowerCase()
+          .includes(roomQuery.toLowerCase()),
+      ).map((l) => {
+        const i = LIVE_LOCATIONS.findIndex((p) => p.id === l.id);
         const g = GATES[l.id],
           can = !pet || accessible(pet, l.id);
         return (
@@ -547,6 +560,7 @@ export default function LiveApp() {
         );
       })}
       <p>{roomInfo.subtitle}</p>
+      <p className="room-lore">{ROOM_LORE[selected]}</p>
     </div>
   );
   return (
@@ -729,15 +743,15 @@ export default function LiveApp() {
           {room && (
             <>
               <button
-                aria-label="Players"
-                title="Players"
+                aria-label="Petdex"
+                title="Petdex"
                 aria-pressed={panel === "players"}
                 onClick={() => toggle("players")}
               >
                 <span className="tool-icon" aria-hidden="true">
                   ♟
                 </span>
-                <span className="tool-name">Players</span>
+                <span className="tool-name">Petdex</span>
               </button>
               <button
                 aria-label="Log"
@@ -841,6 +855,25 @@ export default function LiveApp() {
         )}
       </aside>
       <aside className="hud hud-right" aria-label="Player and game details">
+        {selected === "archives" && panel === "rooms" && (
+          <div className="glass ancestral-gallery">
+            {ANCESTORS.map((a) => (
+              <details key={a.name}>
+                <summary>{a.name}</summary>
+                <div
+                  role="img"
+                  aria-label={`Antique portrait of ${a.name}`}
+                  className="ancestor-photo"
+                  style={{ backgroundPosition: a.position }}
+                />
+                <small>{a.era}</small>
+                <p>
+                  <em>{a.epitaph}</em>
+                </p>
+              </details>
+            ))}
+          </div>
+        )}
         {panel === "rooms" && code && role === "player" && (
           <div className="mobile-room-panel">{roomMenu}</div>
         )}
@@ -896,6 +929,9 @@ export default function LiveApp() {
         )}
         {room && panel === "players" && (
           <div className="glass live-roster">
+            <a href="https://petdex.dev/" target="_blank" rel="noreferrer">
+              Browse Petdex ↗
+            </a>
             {room.pets.map((p) => (
               <article key={p.id}>
                 <PetAvatar pet={p} />
@@ -917,6 +953,21 @@ export default function LiveApp() {
                 <details>
                   <summary>Card</summary>
                   <StatsCard stats={p.stats} />
+                  <p>{p.flavor}</p>
+                  <small>
+                    {["cat", "owl", "ghost"].includes(p.species)
+                      ? "Night vision · "
+                      : ""}
+                    {p.stats.smallness <= 3 ? "Tall · " : ""}
+                    {p.tipsy ? "Tipsy · " : ""}
+                    {p.baby ? "Born at the castle" : "Founding seeker"}
+                  </small>
+                  <p>
+                    Can search:{" "}
+                    {LIVE_LOCATIONS.filter((l) => accessible(p, l.id))
+                      .map((l) => l.name)
+                      .join(", ")}
+                  </p>
                 </details>
               </article>
             ))}

@@ -96,10 +96,49 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - [x] Animate movement, nursery duvet/hearts, and a visible vet treatment.
 - [x] Bottle discoveries produce a tipsy state; vet and Tibo reset cure it. Show discovered props without leaking hidden locations.
 - [x] Add water, air, narrow, tall and dark hiding places with enforced requirements.
-- [ ] Render and exercise the changes, test rules, update documentation and push main.
+- [x] Render and exercise the changes, test rules, update documentation and push main.
 
 ## Mansion detail and entertainment
 
-- [ ] **In progress**: Generate original antique pet photographs and add an inspectable ancestral gallery in the library.
-- [ ] Add room-specific AI lore and discoveries, richer interior props, and quieter world labels.
-- [ ] Verify portraits, final visuals, rules and build; push directly to main.
+- [x] Generate original antique pet photographs and add an inspectable ancestral gallery in the library.
+- [x] Add room-specific AI lore and discoveries, richer interior props, and quieter world labels.
+- [x] Verify portraits, final visuals, rules and build; push directly to main.
+
+- [x] Expand formal gardens with flowers, fountain, greenhouse and paths.
+- [x] Open Petdex; add a linked in-game pet collection with abilities and habitats.
+- [x] Replace realistic portraits with pixel AI pets, enlarge the scene/pets, and hang portraits throughout the mansion.
+
+## Latest feedback — remaining acceptance checks
+
+- [x] Make the gardens substantially larger: lake, boathouse, maze, orchard, glasshouse, pavilion, walls, benches and connecting promenade. Expanded further to 30 destinations with upper floors, cellars and memorials.
+- [x] Replace large gold destination badges with subtle rings; hover shows name, requirements and description; phone tapping and room buttons remain available.
+- [x] Use sixteen distinct fictional pixel-pet ancestors instead of repeating four realistic photographs. Verify the texture crops and gallery captions.
+- [x] Make active pet silhouettes distinct (robot, ghost, dragon, frog, dog, owl, bunny and cat), with size differences from the cards.
+- [x] Final regression tests, browser checks at desktop/phone sizes, asset checks, current docs, clean main push and local checkpoint.
+
+- [x] Add first and second floors with three new hiding places each, plus three dark cellar rooms and a floor selector. Verify automatic cutaways and floor visibility.
+- [x] Add a connected pet graveyard with memorials and relocate the Dark-mode Crypt there; add the Ivory Tower as a flying destination.
+- [x] Make the maze the actual OpenAI knot and retain clear connected access paths.
+- [x] Make the final destination rings visibly clickable, with hover details and floor-aware targets.
+
+- [x] Verify previous/next floor cycling wraps in both directions and direct floor selection works.
+
+- [x] Smooth animation timing across frame rates, avoid idle cloth work, batch static geometry and measure draw-call improvement.
+- [x] Repair floor control spacing with equal arrow sizes, consistent gaps and one compact glass bar.
+
+## Final evidence
+
+- All requested implementation above is complete. `npm test`: 15 passing tests; TypeScript and production build pass.
+- Browser verified breeding, vet healing, upstairs movement and automatic floor selection after rendering optimizations. Floor cycling wraps both directions; room search, direct lake selection and pixel-pet gallery were exercised.
+- The final 390px browser viewport had equal client and scroll widths. Physical-device FPS and venue networking remain external checks.
+- Exterior draw calls fell from 737 to 225. Static geometry is batched, obsolete label textures are removed, animation uses elapsed time, and idle duvet work is skipped.
+- Built server health and bundled portrait/logo assets returned HTTP 200.
+- Only the four explicitly listed external checks remain: real API key, physical phone, user-owned microphone test and GitHub workflow permission.
+
+- [x] Add Tibo's actual photograph in a brass frame in the ground-floor tavern,
+      with a “Keeper of the Reset” plaque and room lore. Record the photo source.
+- [x] Restyle Tibo to match the pixel-pet portraits, retaining the right-hand frame.
+- [x] Add a visible red reset beneath the portrait. Searching the tavern activates
+      one shared charge per hunt, restores 100 usage and cures tipsiness. Keep traps
+      out of that room; verify the charge cannot be claimed twice and replenishes
+      on a new hunt. All 16 tests and production build pass.

@@ -1,3 +1,4 @@
+import { ROOM_LORE } from "../src/live/lore.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   accessible,
@@ -264,7 +265,7 @@ export class Rooms {
     };
     let allowed = LIVE_LOCATIONS.filter(
       (l) =>
-        accessible({ stats }, l.id) &&
+        accessible({ stats, species: "ghost" }, l.id) &&
         room.pets.some(
           (p) => p.readyRound <= room.round && accessible(p, l.id),
         ),
@@ -294,11 +295,13 @@ export class Rooms {
     this.changed(room.code);
     try {
       await this.placeTodd(room);
-      const free = LIVE_LOCATIONS.filter((l) => l.id !== room.dot)
+      const free = LIVE_LOCATIONS.filter(
+        (l) => l.id !== room.dot && l.id !== "tavern",
+      )
         .map((l) => l.id)
         .sort(() => Math.random() - 0.5);
-      room.reset = free[0];
-      room.traps = free.slice(1, 3);
+      room.reset = "tavern";
+      room.traps = free.slice(0, 2);
       room.phase = "seeking";
       this.event(
         room,
@@ -561,6 +564,9 @@ export class Rooms {
           pet.location = move.locationId;
           const location = LIVE_LOCATIONS.find((l) => l.id === pet.location)!;
           this.event(room, move.narration, "seek", move.mode);
+          const lore = ROOM_LORE[pet.location];
+          if (lore && !room.events.some((e) => e.text === lore))
+            this.event(room, lore, "info");
           if (room.traps.includes(pet.location)) {
             room.traps = room.traps.filter((id) => id !== pet.location);
             pet.usage = Math.max(0, pet.usage - 25);
