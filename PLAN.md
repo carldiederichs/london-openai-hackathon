@@ -33,8 +33,8 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
       long sandstone frontage, tall square tower, slate roofs, corner turrets,
       bay windows, curved terrace stairs, lawns and cypress woodland. Visually
       inspected against the castle's official exterior photos.
-- [x] Push verified intermediate milestones. Main was verified at `93a8ef2` before
-      the latest visual revisions; continue direct pushes without overwriting others.
+- [x] Push verified intermediate milestones. The castle and cutaway milestone
+      `0c8d498` was pushed and verified against the remote main ref.
 
 ## Current implementation
 
@@ -67,10 +67,11 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
       Local tests and build passed independently.
 - [x] Update README, design notes and verification record for the final interface
       and deleted prototype. Keep setup, fallback and persistence limits accurate.
-- [ ] **In progress**: Push all verified changes directly to main, check remote commit identity and
+- [x] Push all verified changes directly to main, check remote commit identity and
       leave the local rendered page open. No hosting deployment requested.
-- [ ] Save a concise repository handoff and reconcile this checklist. No Notion
-      reads or writes while the user's pause remains active.
+- [x] Save a concise repository handoff and reconcile this checklist. README and
+      docs/VERIFICATION.md contain setup, evidence and remaining device/key checks.
+      No Notion reads or writes while the user's pause remains active.
 
 ## External checks still open
 
