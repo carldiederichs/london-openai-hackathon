@@ -172,18 +172,18 @@ export default function CastleWorld(props: Props) {
     }
     function label(text: string, x: number, y: number, z: number, scale = 3.7) {
       const canvas = document.createElement("canvas");
-      canvas.width = 512;
-      canvas.height = 96;
+      canvas.width = text === "♥" ? 128 : 512;
+      canvas.height = text === "♥" ? 128 : 96;
       const c = canvas.getContext("2d")!;
       c.fillStyle = "#e5d9b7";
       c.beginPath();
       c.roundRect(4, 4, 504, 84, 28);
       if (text !== "♥") c.fill();
       c.fillStyle = text === "♥" ? "#efa0b7" : "#26392f";
-      c.font = "600 32px monospace";
+      c.font = text === "♥" ? "100px sans-serif" : "600 32px monospace";
       c.textAlign = "center";
       c.textBaseline = "middle";
-      c.fillText(text, 256, 46, 470);
+      c.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width - 12);
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       textures.add(texture);
@@ -191,7 +191,7 @@ export default function CastleWorld(props: Props) {
         new THREE.SpriteMaterial({ map: texture, depthTest: false }),
       );
       sprite.position.set(x, y, z);
-      sprite.scale.set(scale, (scale * 96) / 512, 1);
+      sprite.scale.set(scale, (scale * canvas.height) / canvas.width, 1);
       sprite.renderOrder = 10;
       scene.add(sprite);
       return sprite;
@@ -404,9 +404,19 @@ export default function CastleWorld(props: Props) {
       [-3.2, 2.5, -1.6],
     ];
     for (let i = 0; i < portraitWalls.length; i++) {
-      const [x, py, pz] = portraitWalls[i];
-      box(x, py, pz, 1.35, 1.55, 0.15, "#a1844c");
-      const isTibo = i === 5; // Right-hand tavern frame, clear of the sideboard.
+      const [x, originalY, pz] = portraitWalls[i];
+      const isTibo = i === 5;
+      const py = isTibo ? 3.45 : originalY;
+      box(
+        x,
+        py,
+        pz,
+        isTibo ? 2.35 : 1.35,
+        isTibo ? 2.55 : 1.55,
+        0.18,
+        isTibo ? "#d4b56f" : "#a1844c",
+      );
+      // Right-hand tavern frame, clear of the sideboard.
       const ancestorIndex = i === 4 ? 5 : i;
       const photo = isTibo ? tiboPhoto : portraitAtlas.clone();
       if (!isTibo) {
@@ -418,13 +428,13 @@ export default function CastleWorld(props: Props) {
       }
       textures.add(photo);
       const frame = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.15, isTibo ? 1.15 : 1.35),
+        new THREE.PlaneGeometry(isTibo ? 2.1 : 1.15, isTibo ? 2.1 : 1.35),
         new THREE.MeshBasicMaterial({ map: photo }),
       );
       frame.name = isTibo
         ? "Tibo — Keeper of the Reset"
         : `Pet ancestor ${ancestorIndex + 1}`;
-      frame.position.set(x, py + (isTibo ? 0.1 : 0), pz + 0.09);
+      frame.position.set(x, py + (isTibo ? 0.1 : 0), pz + 0.15);
       interiors.add(frame);
       if (isTibo) {
         const plaqueCanvas = document.createElement("canvas");
@@ -443,23 +453,26 @@ export default function CastleWorld(props: Props) {
         plaqueTexture.colorSpace = THREE.SRGBColorSpace;
         textures.add(plaqueTexture);
         const plaque = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.15, 0.22),
+          new THREE.PlaneGeometry(2.1, 0.32),
           new THREE.MeshBasicMaterial({ map: plaqueTexture }),
         );
-        plaque.position.set(x, py - 0.6, pz + 0.09);
+        plaque.position.set(x, py - 1.08, pz + 0.16);
         interiors.add(plaque);
         // Tibo's one-charge reset lives below his portrait. Searching the tavern
         // activates it through the authoritative room server, like other finds.
-        box(x, 1.45, pz + 0.25, 0.9, 0.65, 0.3, "#454e48");
-        box(x, 1.45, pz + 0.42, 0.72, 0.49, 0.08, "#ae965c");
+        const resetZ = pz + 2.15;
+        box(x, 1.48, resetZ, 1.2, 1.2, 1.15, "#60695a");
+        box(x, 2.12, resetZ, 1.45, 0.16, 1.4, "#d4b56f");
+        const portraitLight = new THREE.PointLight("#ffdf9a", 14, 7, 2);
+        portraitLight.position.set(x, 4.5, pz + 1.7);
+        interiors.add(portraitLight);
         const button = mesh(
-          new THREE.CylinderGeometry(0.24, 0.28, 0.16, 20),
+          new THREE.CylinderGeometry(0.46, 0.5, 0.25, 24),
           "#df493c",
-          [x, 1.45, pz + 0.55],
+          [x, 2.3, resetZ],
         );
-        button.rotation.x = Math.PI / 2;
         button.material.emissive.set("#6b1008");
-        button.material.emissiveIntensity = 0.35;
+        button.material.emissiveIntensity = 1.4;
         const resetLabel = document.createElement("canvas");
         resetLabel.width = 256;
         resetLabel.height = 64;
@@ -474,10 +487,10 @@ export default function CastleWorld(props: Props) {
         resetTexture.colorSpace = THREE.SRGBColorSpace;
         textures.add(resetTexture);
         const resetPlaque = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.72, 0.18),
+          new THREE.PlaneGeometry(1.1, 0.3),
           new THREE.MeshBasicMaterial({ map: resetTexture }),
         );
-        resetPlaque.position.set(x, 1, pz + 0.42);
+        resetPlaque.position.set(x, 1.8, resetZ + 0.585);
         interiors.add(resetPlaque);
       }
     }
@@ -604,7 +617,7 @@ export default function CastleWorld(props: Props) {
           new THREE.PlaneGeometry(1.5, 1.7),
           new THREE.MeshBasicMaterial({ map: photo }),
         );
-        portrait.position.set(x + dx, 3, z - 4.57);
+        portrait.position.set(x + dx, 3, z - 4.51);
         interiors.add(portrait);
       }
       // All annex roofs lift with the original castle; there is no upper floor.
@@ -955,7 +968,7 @@ export default function CastleWorld(props: Props) {
     const quilt = mesh(quiltGeo, "#8c5664", [5, 0.92, 13.25]);
     quilt.material.side = THREE.DoubleSide;
     const quiltBase = Float32Array.from(quiltGeo.attributes.position.array);
-    const hearts = Array.from({ length: 5 }, (_, i) =>
+    const hearts = Array.from({ length: 9 }, (_, i) =>
       label("♥", 5, 2, 13, 0.5 + i * 0.07),
     );
     const healCross = new THREE.Group();
@@ -1532,6 +1545,9 @@ export default function CastleWorld(props: Props) {
             });
             tex.colorSpace = THREE.SRGBColorSpace;
             if (p.spriteRows) {
+              tex.magFilter = THREE.NearestFilter;
+              tex.minFilter = THREE.NearestFilter;
+              tex.generateMipmaps = false;
               tex.repeat.set(1 / 8, 1 / p.spriteRows);
               tex.offset.set(0, 1 - 1 / p.spriteRows);
             }
@@ -1901,13 +1917,14 @@ export default function CastleWorld(props: Props) {
             actor.effectElapsed < 16 &&
             (actor.object.userData.pet as Pet).effect?.kind === kind,
         );
-      const breeding = activeEffect("breed", "nursery");
-      const awaitingBirth = [...petObjects.values()].some(
+      const matingActors = [...petObjects.values()].filter(
         (actor) =>
-          (actor.object.userData.pet as Pet).effect?.kind === "breed" &&
           actor.location === "nursery" &&
-          (actor.journey || actor.effectElapsed < 16),
+          (actor.object.userData.pet as Pet).effect?.kind === "breed",
       );
+      const breeding =
+        matingActors.length === 2 &&
+        matingActors.every((actor) => !actor.journey);
       const treating = activeEffect("vet", "vet");
       for (const [id, roofGroup] of serviceRoofs) {
         const occupied = latest.current.pets.some((p) => p.location === id);
@@ -1928,7 +1945,7 @@ export default function CastleWorld(props: Props) {
         h.material.opacity = media.matches ? 1 : Math.sin(phase * Math.PI);
         h.position.set(
           5 + Math.sin(i * 2) * 0.8,
-          1.5 + (media.matches ? i * 0.35 : (t * 0.55 + i * 0.4) % 2),
+          2.4 + (media.matches ? i * 0.2 : (t * 0.7 + i * 0.32) % 2.8),
           13 + Math.cos(i) * 0.4,
         );
         h.material.rotation = media.matches ? 0 : Math.sin(t + i) * 0.15;
@@ -1940,6 +1957,15 @@ export default function CastleWorld(props: Props) {
         12,
       );
       healCross.lookAt(camera.position);
+      // A floating, billowing canopy conceals the pair while hearts rise above it.
+      const duvetY = breeding
+        ? 2.05 + (media.matches ? 0 : Math.sin(t * 3) * 0.16)
+        : 0.92;
+      quilt.position.y = THREE.MathUtils.lerp(
+        quilt.position.y,
+        duvetY,
+        media.matches ? 1 : 1 - Math.exp(-8 * dt),
+      );
       const cloth = quiltGeo.attributes.position;
       if (breeding || lastClothActive) {
         for (let i = 0; i < cloth.count; i++)
@@ -1949,7 +1975,7 @@ export default function CastleWorld(props: Props) {
               (breeding && !media.matches
                 ? Math.sin(cloth.getX(i) * 3 + t * 3) *
                   Math.cos(cloth.getZ(i) * 3 + t) *
-                  0.12
+                  0.34
                 : 0),
           );
         cloth.needsUpdate = true;
@@ -2006,10 +2032,11 @@ export default function CastleWorld(props: Props) {
           p.sprite.material.map!.offset.set(uv.x, uv.y);
         }
         if (p.sprite)
-          p.sprite.position.y = media.matches
-            ? 0
-            : Math.abs(Math.sin(p.phase * (moving ? 12 : 3))) *
-              (moving ? 0.1 : 0.025);
+          p.sprite.position.y =
+            media.matches || pet.spriteRows
+              ? 0
+              : Math.abs(Math.sin(p.phase * (moving ? 12 : 3))) *
+                (moving ? 0.1 : 0.025);
         const onVisibleFloor =
           (!(pet.location in INTERIORS) && !p.journey) ||
           p.floor === visibleFloor;
@@ -2021,7 +2048,6 @@ export default function CastleWorld(props: Props) {
         const age = p.effectElapsed * 1000;
         p.object.visible =
           (onVisibleFloor || outside) &&
-          !(pet.baby && pet.location === "nursery" && awaitingBirth) &&
           !(
             breeding &&
             !moving &&
@@ -2243,7 +2269,7 @@ export default function CastleWorld(props: Props) {
             : "Drag to orbit · pinch or scroll to zoom"}
         </small>
       </div>
-      {hoverPlace && (
+      {hoverPlace && hoverId && (
         <div
           className={`glass world-hover ${hoverId ? "is-hovering" : ""}`}
           role="status"
@@ -2259,32 +2285,11 @@ export default function CastleWorld(props: Props) {
               : ""}
           </small>
           <p>{hoverPlace.subtitle}</p>
-          <small>Click the light ring to select · Rooms lists all places</small>
         </div>
       )}
       <div className="camera-controls">
         {!(failed || simple) && (
           <>
-            <button onClick={() => zoom.current(1.15)} aria-label="Zoom in">
-              +
-            </button>
-            <button
-              onClick={() => zoom.current(1 / 1.15)}
-              aria-label="Zoom out"
-            >
-              −
-            </button>
-            <button aria-pressed={follow} onClick={() => setFollow(!follow)}>
-              {follow ? "Stop following" : "Follow pet"}
-            </button>
-            <button
-              onClick={() => {
-                setFollow(false);
-                reset.current();
-              }}
-            >
-              Reset view
-            </button>
             <button
               aria-pressed={inside || autoInside}
               disabled={autoInside}
@@ -2299,16 +2304,46 @@ export default function CastleWorld(props: Props) {
             </button>
           </>
         )}
-        <button
-          onClick={() => {
-            if (failed || simple) {
-              setFailed(false);
-              setSimple(false);
-            } else setSimple(true);
-          }}
-        >
-          {failed || simple ? "Show 3D" : "Simple view"}
-        </button>
+        <details className="camera-more glass">
+          <summary aria-label="Camera options" title="Camera options">
+            ···
+          </summary>
+          {!(failed || simple) && (
+            <div>
+              {" "}
+              <button onClick={() => zoom.current(1.15)} aria-label="Zoom in">
+                +
+              </button>
+              <button
+                onClick={() => zoom.current(1 / 1.15)}
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <button aria-pressed={follow} onClick={() => setFollow(!follow)}>
+                {follow ? "Stop following" : "Follow pet"}
+              </button>
+              <button
+                onClick={() => {
+                  setFollow(false);
+                  reset.current();
+                }}
+              >
+                Reset view
+              </button>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              if (failed || simple) {
+                setFailed(false);
+                setSimple(false);
+              } else setSimple(true);
+            }}
+          >
+            {failed || simple ? "Show 3D" : "Simple view"}
+          </button>
+        </details>
       </div>
     </div>
   );

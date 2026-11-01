@@ -1,5 +1,11 @@
+import {
+  advanceMating,
+  enterMatingRoom,
+  matingBusy,
+  matingOccupants,
+} from "./mating";
 import { useEffect, useRef, useState } from "react";
-import { PREVIEW_PETS } from "../pets";
+import { CODEX_PETS, PREVIEW_PETS } from "../pets";
 import PetAvatar from "../PetAvatar";
 import CastleWorld, { type Travel } from "./CastleWorld";
 import { preparePetImage } from "./client";
@@ -12,6 +18,8 @@ import {
   type Stats,
 } from "./shared";
 import "./live.css";
+import HuntClock, { useSecondsLeft } from "./HuntClock";
+import { HUNT_DURATION_MS, survivorIds } from "./shared";
 
 const CARDS: Record<string, Stats> = {
   cat: { flight: 2, smallness: 4, speed: 4, climb: 7, swim: 3 },
@@ -33,7 +41,8 @@ const starters = (): LivePet[] =>
     origin: "fallback",
   }));
 const roomName = (id: string) =>
-  LIVE_LOCATIONS.find((l) => l.id === id)?.name || "Base camp";
+  LIVE_LOCATIONS.find((l) => l.id === id)?.name ||
+  ({ nursery: "Mating room", vet: "The vet" }[id] ?? "Base camp");
 const HIDING = [
   "courtyard",
   "tavern",
@@ -45,43 +54,98 @@ const HIDING = [
 ];
 
 export default function PracticeHunt() {
-  const [pets, setPets] = useState(starters),
-    [selected, setSelected] = useState(PREVIEW_PETS[0].id);
-  const [room, setRoom] = useState("garden"),
-    [todd, setTodd] = useState(0);
-  const [travel, setTravel] = useState<Travel[]>([]),
-    [paused, setPaused] = useState(false);
-  const [tour, setTour] = useState(false),
-    [message, setMessage] = useState(
-      "Choose a guardian, then click a room. Or send the whole pack.",
-    );
+  const [pets, setPets] = useState(starters);
+  const [selected, setSelected] = useState(PREVIEW_PETS[0].id);
+  const [room, setRoom] = useState("garden");
+  const [todd, setTodd] = useState(0);
+  const [travel, setTravel] = useState<Travel[]>([]);
+  const [paused, setPaused] = useState(false);
+  const [tour, setTour] = useState(false);
+  const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
-  const [reading, setReading] = useState(false),
-    trip = useRef(0);
-  const pet = pets.find((p) => p.id === selected)!;
+  const [reading, setReading] = useState(false);
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [winners, setWinners] = useState<string[] | null>(null);
+  const trip = useRef(0);
+  const previousCount = useRef(pets.length);
+  const seconds = useSecondsLeft(endsAt);
+  const expired = endsAt !== null && seconds === 0;
+  const finished = winners !== null;
+  const active = endsAt !== null && !finished && !expired;
+  const pet = pets.find((p) => p.id === selected) ?? pets[pets.length - 1];
+  const occupancy = matingOccupants(pets).length;
+  const busyMating =
+    matingBusy(pet) || (pet.location === "nursery" && occupancy === 2);
+  useEffect(() => {
+    if (pets.length < previousCount.current)
+      setMessage(
+        `${pets[pets.length - 1].name} emerged. Both players share this pet.`,
+      );
+    previousCount.current = pets.length;
+    if (!pets.some((p) => p.id === selected)) setSelected(pet.id);
+  }, [pets, selected, pet.id]);
+  useEffect(() => {
+    if (paused || finished || expired) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (endsAt !== null && now >= endsAt) return;
+      setPets((current) =>
+        advanceMating(current, now, () => crypto.randomUUID()),
+      );
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [paused, finished, expired, endsAt]);
+  const locked = () =>
+    paused || (endsAt !== null && Date.now() >= endsAt) || finished;
+  useEffect(() => {
+    if (!expired || finished) return;
+    setWinners(survivorIds(pets, 1));
+    setTour(false);
+    setMessage("");
+  }, [expired, finished, pets]);
+  function start() {
+    setPets(starters());
+    setWinners(null);
+    setEndsAt(Date.now() + HUNT_DURATION_MS);
+    setPaused(false);
+    setTour(true);
+    setTodd(0);
+    trip.current = 0;
+    setMessage("");
+  }
   function move(id: string) {
-    if (paused) return;
-    setRoom(id);
+    if (locked() || busyMating) return;
     if (!accessible(pet, id)) {
       const gate = GATES[id]!;
       setMessage(
-        `${pet.name} cannot enter ${roomName(id)}. Needs ${gate.label || `${STAT_LABELS[gate.stat]} ${gate.min}+`}.`,
+        `Needs ${gate.label || `${STAT_LABELS[gate.stat]} ${gate.min}+`}.`,
       );
       return;
     }
-    if (pet.location === id) {
-      setMessage(`${pet.name} is already in ${roomName(id)}.`);
+    if (pet.location === id) return;
+    if (active && pet.usage < 10) {
+      setMessage("Visit the vet to restore usage.");
       return;
     }
+    setRoom(id);
     setPets((current) =>
-      current.map((p) => (p.id === selected ? { ...p, location: id } : p)),
+      current.map((p) =>
+        p.id === selected
+          ? {
+              ...p,
+              location: id,
+              usage: active ? p.usage - 10 : p.usage,
+              effect: undefined,
+              mating: undefined,
+            }
+          : p,
+      ),
     );
-    setMessage(`${pet.name} → ${roomName(id)}`);
+    setMessage("");
   }
   function sendPack() {
+    if (locked()) return;
     const turn = trip.current++;
-    // First excursion deliberately shows walking, flying, swimming, climbing,
-    // and narrow entrances at once. Later excursions choose other legal rooms.
     const first = [
       "workshop",
       "ivory",
@@ -96,6 +160,7 @@ export default function PracticeHunt() {
     ];
     setPets((current) =>
       current.map((p, i) => {
+        if (p.location === "nursery" || (active && p.usage < 10)) return p;
         const options = LIVE_LOCATIONS.filter(
           (l) => accessible(p, l.id) && l.id !== p.location,
         );
@@ -107,21 +172,27 @@ export default function PracticeHunt() {
             accessible(p, preferred) && preferred !== p.location
               ? preferred
               : options[0].id,
+          usage: active ? p.usage - 10 : p.usage,
+          effect: undefined,
         };
       }),
     );
     setTodd((current) => (current + 1) % HIDING.length);
-    setMessage(
-      "The pack is on the move. Follow the name tags and route lines.",
-    );
+    setMessage("");
   }
   useEffect(() => {
-    if (!tour || paused || travel.length) return;
-    const timer = window.setTimeout(() => sendPack(), 2500);
+    if (!tour || paused || travel.length || finished || expired) return;
+    const timer = window.setTimeout(sendPack, 2500);
     return () => window.clearTimeout(timer);
-  }, [tour, paused, travel.length]);
+  }, [tour, paused, travel.length, finished, expired, endsAt]);
   return (
-    <main className="live-app practice-app" aria-label="Pet movement practice">
+    <main className="live-app practice-app" aria-label="Feral practice">
+      <HuntClock
+        seconds={finished ? 0 : seconds}
+        finished={finished}
+        waiting={endsAt === null}
+        winners={pets.filter((p) => winners?.includes(p.id)).map((p) => p.name)}
+      />
       <CastleWorld
         pets={pets}
         selected={room}
@@ -132,44 +203,27 @@ export default function PracticeHunt() {
         )}
         onSelect={move}
         onTravelChange={setTravel}
-        paused={paused}
+        paused={paused || expired || finished}
       />
       <aside className="practice-controls glass" aria-label="Practice controls">
-        <div className="practice-title">
-          <a href="/" aria-label="Back to live game">
+        <div className="practice-actions">
+          <a
+            className="back-link"
+            href="/"
+            aria-label="Back to live game"
+            title="Back to live game"
+          >
             ←
           </a>
-          <span>Practice · no phone needed</span>
-        </div>
-        <p>
-          Ten guardians. One misaligned Todd. Click a room to send your selected
-          pet there.
-        </p>
-        <div className="practice-actions">
-          <button className="primary" disabled={paused} onClick={sendPack}>
-            Send the pack ↗
-          </button>
-          <button aria-pressed={paused} onClick={() => setPaused(!paused)}>
-            {paused ? "Resume" : "Pause"}
-          </button>
-        </div>
-        <div className="practice-actions">
-          <button
-            disabled={paused}
-            onClick={() => setTodd((current) => (current + 1) % HIDING.length)}
-          >
-            Todd, run!
-          </button>
-          <button
-            aria-pressed={tour}
-            disabled={paused}
-            onClick={() => {
-              if (!tour) sendPack();
-              setTour(!tour);
-            }}
-          >
-            {tour ? "Stop tour" : "Loop tour"}
-          </button>
+          {!active ? (
+            <button className="primary" onClick={start}>
+              {finished || expired ? "Play again" : "Start · 1 minute"}
+            </button>
+          ) : (
+            <button disabled={paused} onClick={sendPack}>
+              Move pack
+            </button>
+          )}
         </div>
         <div className="practice-pets" aria-label="Choose a guardian">
           {pets.map((p) => (
@@ -178,6 +232,8 @@ export default function PracticeHunt() {
               aria-pressed={selected === p.id}
               onClick={() => setSelected(p.id)}
               aria-label={`Select ${p.name}`}
+              title={`${p.name} · ${p.usage} usage`}
+              className={p.usage === 0 ? "exhausted" : ""}
             >
               <PetAvatar pet={p} />
               <span>{p.name}</span>
@@ -186,54 +242,10 @@ export default function PracticeHunt() {
         </div>
         <div className="practice-card">
           <strong>{pet.name}</strong>
-          <span>{roomName(pet.location)}</span>
-          <small>
-            {Object.entries(pet.stats)
-              .map(([key, n]) => `${STAT_LABELS[key as keyof Stats]} ${n}`)
-              .join(" · ")}
-          </small>
+          <span>{pet.usage} usage</span>
         </div>
-        <label className="practice-upload">
-          {reading ? "Loading sprite…" : `Use your pet as ${pet.name}`}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            disabled={reading || travel.some((t) => t.id === selected)}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const id = selected;
-              setReading(true);
-              try {
-                const art = await preparePetImage(file);
-                setPets((current) =>
-                  current.map((p) =>
-                    p.id === id
-                      ? { ...p, ...art, spriteRows: art.spriteRows }
-                      : p,
-                  ),
-                );
-                setMessage(
-                  art.spriteRows
-                    ? "Codex sprite loaded. Running frames play during travel; idle frames play at rest."
-                    : "Pet image loaded. Send your guardian to a room.",
-                );
-              } catch (error) {
-                setMessage((error as Error).message);
-              } finally {
-                setReading(false);
-                e.target.value = "";
-              }
-            }}
-          />
-        </label>
-        <small>
-          PNG / WebP / JPEG, or a Codex sprite sheet (1536 × 1872 or 1536 ×
-          2288). Stays in this tab. Practice cards keep their existing
-          abilities.
-        </small>
         <details className="practice-rooms">
-          <summary>Choose a destination</summary>
+          <summary>Move to…</summary>
           <div>
             <input
               aria-label="Find a destination"
@@ -246,7 +258,14 @@ export default function PracticeHunt() {
             ).map((l) => (
               <button
                 key={l.id}
-                disabled={paused || !accessible(pet, l.id)}
+                disabled={
+                  paused ||
+                  busyMating ||
+                  expired ||
+                  finished ||
+                  !accessible(pet, l.id) ||
+                  (active && pet.usage < 10)
+                }
                 aria-pressed={room === l.id}
                 onClick={() => move(l.id)}
               >
@@ -257,56 +276,182 @@ export default function PracticeHunt() {
           </div>
         </details>
         <button
+          disabled={
+            paused ||
+            expired ||
+            finished ||
+            busyMating ||
+            pet.location === "nursery" ||
+            occupancy >= 2 ||
+            pet.usage < 20 ||
+            travel.some((t) => t.id === pet.id)
+          }
           onClick={() => {
-            setTour(false);
-            setPaused(false);
-            setPets(starters());
-            setTodd(0);
-            trip.current = 0;
-            setMessage("Guardians are heading back to base camp.");
+            if (locked()) return;
+            try {
+              const next = enterMatingRoom(pets, pet.id, Date.now());
+              setPets(next);
+              setTour(false);
+              setRoom("nursery");
+              setMessage(
+                occupancy
+                  ? "Two pets. The duvet starts when both arrive."
+                  : "Waiting for a second pet. 1/2 places taken.",
+              );
+            } catch (error) {
+              setMessage((error as Error).message);
+            }
           }}
         >
-          Back to base camp
+          {busyMating ? "Merging… ♥" : `Mating room · ${occupancy}/2`}
         </button>
-      </aside>
-      <section className="practice-status glass" aria-label="Movement status">
-        <div>
-          <i className={travel.length ? "in-motion" : ""} />
-          <strong>
-            {paused
-              ? "Movement paused"
-              : travel.length
-                ? `${travel.length} guardians travelling`
-                : "Ready to explore"}
-          </strong>
-        </div>
-        <p role="status">{message}</p>
-        {travel.length > 0 && (
-          <div className="travel-list">
-            {travel.map((p) => (
-              <small key={p.id}>
-                {p.name}{" "}
-                <span>
-                  {p.mode === "fly"
-                    ? "flies"
-                    : p.mode === "swim"
-                      ? "swims"
-                      : p.mode === "climb"
-                        ? "climbs"
-                        : "runs"}{" "}
-                  → {roomName(p.to)}
-                </span>
-              </small>
-            ))}
-          </div>
+        {active && pet.usage < 100 && (
+          <button
+            disabled={paused || busyMating}
+            onClick={() => {
+              if (locked()) return;
+              setPets((current) =>
+                current.map((p) =>
+                  p.id === selected
+                    ? {
+                        ...p,
+                        usage: Math.min(100, p.usage + 50),
+                        location: "vet",
+                        mating: undefined,
+                        tipsy: false,
+                        effect: { kind: "vet", at: Date.now() },
+                      }
+                    : p,
+                ),
+              );
+            }}
+          >
+            Vet · +50 usage
+          </button>
         )}
-        <p className="todd-status">
-          ● Todd · {roomName(HIDING[todd])}
+        <details className="secondary-controls">
+          <summary>More</summary>
           <small>
-            Visible for rehearsal. Live hiding locations stay secret.
+            {roomName(pet.location)} ·{" "}
+            {Object.entries(pet.stats)
+              .map(([k, n]) => `${STAT_LABELS[k as keyof Stats]} ${n}`)
+              .join(" · ")}
           </small>
-        </p>
-      </section>
+          <details className="codex-pet-picker">
+            <summary>Codex companions</summary>
+            <div className="practice-pets">
+              {CODEX_PETS.map((companion) => (
+                <button
+                  key={companion.id}
+                  disabled={
+                    reading ||
+                    busyMating ||
+                    pet.location === "nursery" ||
+                    travel.some((t) => t.id === pet.id)
+                  }
+                  aria-label={`Use ${companion.name}`}
+                  onClick={() => {
+                    setPets((current) =>
+                      current.map((p) =>
+                        p.id === pet.id
+                          ? {
+                              ...p,
+                              name: companion.name,
+                              image: companion.image,
+                              spriteRows: companion.spriteRows,
+                            }
+                          : p,
+                      ),
+                    );
+                  }}
+                >
+                  <PetAvatar pet={companion} />
+                  <span>{companion.name}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+          <label className="practice-upload">
+            {reading ? "Loading…" : "Change pet image"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={
+                reading || busyMating || travel.some((t) => t.id === selected)
+              }
+              onChange={async (e) => {
+                const input = e.currentTarget,
+                  file = input.files?.[0];
+                if (!file) return;
+                const id = selected;
+                setReading(true);
+                try {
+                  const art = await preparePetImage(file);
+                  setPets((current) =>
+                    current.map((p) =>
+                      p.id === id
+                        ? { ...p, ...art, spriteRows: art.spriteRows }
+                        : p,
+                    ),
+                  );
+                  setMessage("");
+                } catch (error) {
+                  setMessage((error as Error).message);
+                } finally {
+                  setReading(false);
+                  input.value = "";
+                }
+              }}
+            />
+          </label>
+          <button
+            data-pause
+            aria-pressed={paused}
+            disabled={finished || expired || occupancy > 0}
+            onClick={() => setPaused(!paused)}
+          >
+            {paused ? "Resume movement" : "Pause movement"}
+          </button>
+          <button
+            aria-pressed={tour}
+            disabled={finished || expired}
+            onClick={() => setTour(!tour)}
+          >
+            {tour ? "Stop auto-move" : "Auto-move pack"}
+          </button>
+          <button
+            disabled={paused || finished || expired}
+            onClick={() => setTodd((current) => (current + 1) % HIDING.length)}
+          >
+            Move Todd
+          </button>
+          <button
+            onClick={() => {
+              setEndsAt(null);
+              setWinners(null);
+              setPets(starters());
+              setPaused(false);
+              setTour(false);
+              trip.current = 0;
+              setTodd(0);
+              setMessage("");
+            }}
+          >
+            Reset practice
+          </button>
+          <small>
+            Practice only. Moves cost 10 usage; the vet restores 50. The clock
+            keeps running when movement is paused. Phone play includes bottles
+            and audience interventions. Two pets in the mating room merge after
+            eight seconds; both owners share the new pet.
+          </small>
+        </details>
+        {message && (
+          <p className="practice-message" role="status">
+            {message}
+          </p>
+        )}
+      </aside>
     </main>
   );
 }

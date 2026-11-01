@@ -1200,3 +1200,197 @@
     max-height: 25dvh;
   }
 }
+
+/* The clock is the one deliberate centre overlay; controls stay at the edges. */
+.hunt-clock {
+  position: absolute;
+  z-index: 12;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #f5ecd5;
+  pointer-events: none;
+  width: min(440px, 48vw);
+  text-shadow: 0 3px 24px #071710cc;
+}
+.clock-digits {
+  font:
+    500 clamp(48px, 7.5vw, 100px)/1 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.07em;
+}
+.hunt-clock > small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.hunt-clock.urgent {
+  color: #f5b5a0;
+}
+.clock-result {
+  margin: 12px auto 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #14241ed9;
+  backdrop-filter: blur(12px);
+  font-size: 14px;
+  max-height: 26dvh;
+  overflow: auto;
+  pointer-events: auto;
+}
+.clock-result strong,
+.clock-result span {
+  display: block;
+}
+.clock-result span {
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.practice-controls {
+  top: 18px;
+  width: 200px;
+  padding: 12px;
+}
+.practice-pets {
+  gap: 3px;
+}
+.practice-pets button {
+  padding: 5px 2px;
+}
+.practice-pets button span {
+  font-size: 9px;
+}
+.practice-pets .exhausted {
+  opacity: 0.35;
+}
+.practice-card {
+  padding: 10px 0;
+  margin-top: 8px;
+}
+.practice-controls .practice-actions {
+  margin: 0 0 12px;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+}
+.back-link {
+  text-align: center;
+  text-decoration: none;
+  font-size: 21px;
+}
+.secondary-controls {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.secondary-controls summary {
+  cursor: pointer;
+  padding: 8px 0;
+  color: #bdc8b8;
+}
+.secondary-controls[open] {
+  display: grid;
+  gap: 8px;
+}
+.secondary-controls small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #bdc8b8;
+  margin: 8px 0;
+}
+.practice-message {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.camera-more {
+  padding: 0;
+  min-width: 44px;
+}
+.camera-more summary {
+  cursor: pointer;
+  text-align: center;
+  list-style: none;
+  padding: 6px 12px;
+  font-size: 22px;
+}
+.camera-more summary::-webkit-details-marker {
+  display: none;
+}
+.camera-more[open] {
+  padding: 6px;
+}
+.camera-more button {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+}
+.camera-controls {
+  width: 100px;
+}
+.world-hover.is-hovering {
+  top: auto;
+  bottom: 110px;
+}
+.live-app:has(.world-hover.is-hovering) .hud-right {
+  top: 18px;
+}
+@media (max-width: 700px) {
+  .hunt-clock {
+    top: 10px;
+    width: 52vw;
+  }
+  .clock-digits {
+    font-size: 54px;
+  }
+  .hunt-clock > small {
+    font-size: 10px;
+  }
+  .practice-controls {
+    top: 105px;
+    left: 10px;
+    width: 164px;
+    max-height: calc(100dvh - 125px);
+    padding: 10px;
+  }
+  .hud-right {
+    top: 112px;
+    max-height: calc(100dvh - 130px);
+  }
+  .live-app:has(.world-hover.is-hovering) .hud-right {
+    top: 112px;
+  }
+  .clock-result {
+    font-size: 12px;
+    max-height: 23dvh;
+  }
+  .camera-controls {
+    width: 84px;
+  }
+}
+
+.utility-menu {
+  padding: 10px 12px;
+}
+.utility-menu summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+.utility-menu[open] .side-tools {
+  margin-top: 10px;
+}
+
+.codex-pet-picker {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.codex-pet-picker legend {
+  margin-bottom: 8px;
+}
+.codex-pet-picker .practice-pets .pet-avatar {
+  width: 40px;
+  height: 44px;
+}

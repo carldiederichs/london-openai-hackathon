@@ -65,6 +65,8 @@ export const GATES: Record<
 export const LIVE_LOCATIONS = LOCATIONS;
 export type LivePet = Pet & {
   ownerId: string;
+  coOwnerIds?: string[];
+  mating?: { arrivesAt: number; finishesAt?: number };
   stats: Stats;
   flavor: string;
   origin: "ai" | "fallback" | "bred";
@@ -79,7 +81,7 @@ export type Player = {
 export type MoveInput =
   | { type: "seek"; petId: string; prompt: string }
   | { type: "vet"; petId: string }
-  | { type: "breed"; petId: string; partnerId: string };
+  | { type: "breed"; petId: string; partnerId?: string };
 export type Phase =
   "lobby" | "hiding" | "seeking" | "resolving" | "results" | "over";
 export type Constraint = "eight" | "emoji" | "rhyme";
@@ -154,7 +156,9 @@ export type PublicRoom = {
   code: string;
   phase: Phase;
   round: number;
-  maxRounds: number;
+  endsAt: number | null;
+  serverNow: number;
+  winnerPetIds: string[];
   players: Player[];
   pets: LivePet[];
   submitted: string[];
@@ -165,7 +169,7 @@ export type PublicRoom = {
   ruledOut: string[];
   cards: AdvantageId[];
   cheer: CheerResult | null;
-  outcome: "caught" | "escaped" | null;
+  outcome: "survived" | null;
   reveal: { location: string; summary: string; stats: Stats } | null;
   ai: { configured: boolean; model: string; fallbackCount: number };
   generation: number;
@@ -251,3 +255,16 @@ export function localRhyme(prompt: string): boolean {
     ends[0].slice(-2) === ends[1].slice(-2)
   );
 }
+
+export const HUNT_DURATION_MS = 60_000;
+export function survivorIds(pets: LivePet[], round: number): string[] {
+  return pets
+    .filter((p) => p.usage > 0 && p.readyRound <= round)
+    .map((p) => p.id);
+}
+
+export const petOwners = (pet: LivePet): string[] => [
+  ...new Set([pet.ownerId, ...(pet.coOwnerIds ?? [])]),
+];
+export const ownsPet = (pet: LivePet, playerId?: string): boolean =>
+  !!playerId && petOwners(pet).includes(playerId);

@@ -1,7 +1,17 @@
+import {
+  advanceMating,
+  enterMatingRoom,
+  matingBusy,
+  matingOccupants,
+} from "../src/live/mating.ts";
 import { ROOM_LORE } from "../src/live/lore.ts";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   accessible,
+  ownsPet,
+  petOwners,
+  HUNT_DURATION_MS,
+  survivorIds,
   ADVANTAGES,
   balanceStats,
   LIVE_LOCATIONS,
@@ -28,6 +38,7 @@ export type Room = {
   generation: number;
   players: Member[];
   pets: LivePet[];
+  originalPets: LivePet[];
   submissions: Record<string, MoveInput>;
   dot: string;
   hiderStats: Stats;
@@ -43,6 +54,8 @@ export type Room = {
   images: Map<string, string>;
   joining: number;
   touched: number;
+  endsAt: number | null;
+  winnerPetIds: string[];
 };
 const token = () => randomBytes(24).toString("base64url");
 const constraintFor = (round: number): Constraint =>
@@ -84,7 +97,56 @@ export class Rooms {
   constructor(
     readonly brain: Brain,
     readonly changed: (code: string) => void = () => {},
+    readonly now: () => number = Date.now,
   ) {}
+  // The deadline is authoritative even if nobody has a browser open. It is
+  // also checked at command boundaries, so an action cannot sneak past expiry.
+  private finishIfExpired(room: Room): boolean {
+    if (room.phase === "over") return true;
+    if (room.endsAt === null || this.now() < room.endsAt) return false;
+    room.phase = "over";
+    room.outcome = "survived";
+    room.winnerPetIds = survivorIds(room.pets, room.round);
+    room.submissions = {};
+    const names = room.pets
+      .filter((p) => room.winnerPetIds.includes(p.id))
+      .map((p) => p.name);
+    this.event(
+      room,
+      names.length
+        ? `Time's up. ${names.join(", ")} ${names.length === 1 ? "wins" : "share the win"}!`
+        : "Time's up. No pets survived.",
+    );
+    this.changed(room.code);
+    return true;
+  }
+  tick() {
+    for (const room of this.rooms.values()) {
+      if (
+        this.finishIfExpired(room) ||
+        room.endsAt === null ||
+        ["resolving", "hiding"].includes(room.phase)
+      )
+        continue;
+      const pets = advanceMating(room.pets, this.now(), randomUUID);
+      if (pets !== room.pets) {
+        if (pets.length < room.pets.length) {
+          const child = pets.find(
+            (p) => !room.pets.some((old) => old.id === p.id),
+          )!;
+          for (const player of room.players)
+            if (ownsPet(child, player.id)) player.petId = child.id;
+          this.event(
+            room,
+            `${child.name} emerged! Both players share the new pet.`,
+            "heal",
+          );
+        }
+        room.pets = pets;
+        this.changed(room.code);
+      }
+    }
+  }
   private event(
     room: Room,
     text: string,
@@ -106,6 +168,7 @@ export class Rooms {
     if (!room)
       throw new Error("Room not found. Ask the host for a fresh code.");
     room.touched = Date.now();
+    this.finishIfExpired(room);
     return room;
   }
   authenticate(code: string, secret: string): Session {
@@ -148,6 +211,7 @@ export class Rooms {
       generation: 1,
       players: [],
       pets: [],
+      originalPets: [],
       submissions: {},
       dot: "",
       hiderStats: balanceStats({}),
@@ -159,6 +223,8 @@ export class Rooms {
       ruledOut: [],
       cheer: null,
       outcome: null,
+      endsAt: null,
+      winnerPetIds: [],
       fallbackCount: 0,
       images: new Map(),
       joining: 0,
@@ -257,6 +323,7 @@ export class Rooms {
     }
   }
   private async placeTodd(room: Room, shrinking = false) {
+    const generation = room.generation;
     const stats = {
       ...room.hiderStats,
       ...(shrinking
@@ -277,6 +344,7 @@ export class Rooms {
       room.round,
       room.dot || undefined,
     );
+    if (room.generation !== generation || this.finishIfExpired(room)) return;
     // A model or adapter cannot bypass the engine, even with a syntactically valid response.
     room.dot = allowed.includes(result.locationId)
       ? result.locationId
@@ -290,6 +358,7 @@ export class Rooms {
       throw new Error(
         "Wait for at least one completed pet card before starting.",
       );
+    room.originalPets = structuredClone(room.pets);
     room.phase = "hiding";
     room.hiderStats = toddStats(room.pets);
     this.changed(room.code);
@@ -303,9 +372,10 @@ export class Rooms {
       room.reset = "tavern";
       room.traps = free.slice(0, 2);
       room.phase = "seeking";
+      room.endsAt = this.now() + HUNT_DURATION_MS;
       this.event(
         room,
-        "Todd has hidden. Four rounds. One capture. Guardians, submit your moves.",
+        "One minute. Keep your pet above zero usage to survive. Guardians, submit your moves.",
       );
     } catch {
       room.phase = "lobby";
@@ -328,10 +398,15 @@ export class Rooms {
     if (!raw || typeof raw !== "object") throw new Error("Choose an action.");
     const input = raw as MoveInput;
     const pet = room.pets.find(
-      (p) => p.id === input.petId && p.ownerId === verified.playerId,
+      (p) => p.id === input.petId && ownsPet(p, verified.playerId),
     );
     if (!pet || pet.readyRound > room.round)
       throw new Error("Choose one of your ready pets.");
+    if (
+      matingBusy(pet) ||
+      (pet.location === "nursery" && matingOccupants(room.pets).length === 2)
+    )
+      throw new Error("Your pets are merging. Wait for the duvet to finish.");
     if (room.submissions[verified.playerId!])
       throw new Error("Your move is already locked in for this round.");
     if (input.type === "seek") {
@@ -351,27 +426,19 @@ export class Rooms {
         throw new Error("Your pet is already at full usage.");
       room.submissions[verified.playerId!] = { type: "vet", petId: pet.id };
     } else if (input.type === "breed") {
-      const partner = room.pets.find(
-        (p) =>
-          p.id === input.partnerId &&
-          p.ownerId !== verified.playerId &&
-          p.readyRound <= room.round,
-      );
-      if (
-        !partner ||
-        pet.usage < 20 ||
-        partner.usage < 20 ||
-        room.pets.length >= 20
-      )
-        throw new Error(
-          "Choose another player’s ready pet. Both parents need 20 usage; party limit is 20.",
-        );
-      room.submissions[verified.playerId!] = {
-        type: "breed",
-        petId: pet.id,
-        partnerId: partner.id,
-      };
+      enterMatingRoom(room.pets, pet.id, this.now()); // Validate before reserving.
+      const reserved = new Set([
+        ...matingOccupants(room.pets).map((p) => p.id),
+        ...Object.values(room.submissions)
+          .filter((m) => m.type === "breed")
+          .map((m) => m.petId),
+      ]);
+      if (reserved.size >= 2)
+        throw new Error("Mating room full — only two pets at a time.");
+      room.submissions[verified.playerId!] = { type: "breed", petId: pet.id };
     } else throw new Error("Unknown action.");
+    for (const owner of petOwners(pet))
+      room.submissions[owner] = room.submissions[verified.playerId!];
     this.changed(room.code);
   }
   cheer(session: Session, raw: unknown) {
@@ -447,7 +514,11 @@ export class Rooms {
         room.cheer?.advantage === "shrink"
       )
         await this.placeTodd(room, room.cheer.advantage === "shrink");
-      const entries = Object.entries(room.submissions);
+      if (room.generation !== generation || this.finishIfExpired(room)) return;
+      const entries = Object.entries(room.submissions).filter(
+        ([, move], i, all) =>
+          all.findIndex(([, m]) => m.petId === move.petId) === i,
+      );
       const interpreted = await Promise.all(
         entries.map(async ([owner, input]) => {
           const pet = room.pets.find((p) => p.id === input.petId)!;
@@ -465,6 +536,7 @@ export class Rooms {
           return { owner, input, pet, move };
         }),
       );
+      if (room.generation !== generation || this.finishIfExpired(room)) return;
       interpreted.sort(
         (a, b) =>
           b.pet.stats.speed -
@@ -472,16 +544,15 @@ export class Rooms {
             (a.pet.stats.speed - (a.pet.tipsy ? 2 : 0)) ||
           a.pet.id.localeCompare(b.pet.id),
       );
-      const bred = new Set<string>();
       let caught = false;
-      for (const { owner, input, pet, move } of interpreted) {
-        if (bred.has(pet.id)) continue;
+      for (const { input, pet, move } of interpreted) {
         pet.acted = true;
         pet.effect = undefined;
         if (input.type === "vet") {
           const restored = Math.min(50, 100 - pet.usage);
           pet.usage += restored;
           pet.location = "vet";
+          pet.mating = undefined;
           pet.tipsy = false;
           pet.effect = { kind: "vet", at: Date.now() };
           this.event(
@@ -490,61 +561,10 @@ export class Rooms {
             "heal",
           );
         } else if (input.type === "breed") {
-          const other = interpreted.find(
-            (e) =>
-              e.input.type === "breed" &&
-              e.pet.id === input.partnerId &&
-              e.input.partnerId === pet.id,
-          );
-          if (
-            !other ||
-            room.pets.length >= 20 ||
-            other.pet.usage < 20 ||
-            pet.usage < 20
-          ) {
-            this.event(
-              room,
-              `${pet.name} waited at the nursery. Breeding needs matching requests from both parents.`,
-              "info",
-            );
-            continue;
-          }
-          const partner = other.pet;
-          pet.usage -= 20;
-          partner.usage -= 20;
-          partner.acted = true;
-          pet.location = partner.location = "nursery";
-          pet.effect = partner.effect = { kind: "breed", at: Date.now() };
-          bred.add(pet.id);
-          bred.add(partner.id);
-          const stats = balanceStats(
-            Object.fromEntries(
-              STAT_KEYS.map((k) => [k, (pet.stats[k] + partner.stats[k]) / 2]),
-            ),
-          );
-          const baby: LivePet = {
-            ...pet,
-            id: randomUUID(),
-            name: `Sprout ${room.pets.filter((p) => p.baby).length + 1}`,
-            stats,
-            ownerId: owner,
-            usage: 100,
-            readyRound: room.round + 1,
-            baby: true,
-            tipsy: false,
-            effect: undefined,
-            acted: true,
-            color: partner.color,
-            flavor: `A little mix of ${pet.name} and ${partner.name}.`,
-            origin: "bred",
-            image: undefined,
-            spriteRows: undefined,
-          };
-          room.pets.push(baby);
+          room.pets = enterMatingRoom(room.pets, pet.id, this.now());
           this.event(
             room,
-            `${pet.name} + ${partner.name} welcomed ${baby.name}. ${pet.name}'s player can choose the baby next round.`,
-            "heal",
+            `${pet.name} is heading to the mating room. Two places only.`,
           );
         } else if (move) {
           if (
@@ -562,6 +582,7 @@ export class Rooms {
           }
           pet.usage -= 10;
           pet.location = move.locationId;
+          pet.mating = undefined;
           const location = LIVE_LOCATIONS.find((l) => l.id === pet.location)!;
           this.event(room, move.narration, "seek", move.mode);
           const lore = ROOM_LORE[pet.location];
@@ -610,18 +631,16 @@ export class Rooms {
             `${player.name} had no submitted action and rested.`,
             "info",
           );
-      room.outcome = caught ? "caught" : room.round === 4 ? "escaped" : null;
-      room.phase = room.outcome ? "over" : "results";
+      room.phase = "results";
       this.event(
         room,
         caught
-          ? "Todd is contained. The castle belongs to its guardians."
-          : room.outcome
-            ? "Four rounds are over. Todd escaped."
-            : `Round ${room.round} is complete. Todd's move is now revealed.`,
+          ? "Todd was caught. Keep your pets alive until the clock runs out."
+          : `Round ${room.round} is complete. Todd's move is now revealed.`,
         "todd",
       );
     } catch {
+      if (room.generation !== generation || this.finishIfExpired(room)) return;
       Object.assign(room, snapshot, {
         players: room.players,
         touched: room.touched,
@@ -650,12 +669,16 @@ export class Rooms {
     this.changed(room.code);
     try {
       await this.placeTodd(room);
+      if (room.generation !== snapshot.generation || this.finishIfExpired(room))
+        return;
       room.phase = "seeking";
       this.event(
         room,
         `Round ${room.round}. Todd has moved. Every player has one fresh action.`,
       );
     } catch {
+      if (room.generation !== snapshot.generation || this.finishIfExpired(room))
+        return;
       Object.assign(room, snapshot, {
         players: room.players,
         touched: room.touched,
@@ -679,12 +702,13 @@ export class Rooms {
     room.clue = null;
     room.ruledOut = [];
     room.outcome = null;
+    room.endsAt = null;
+    room.winnerPetIds = [];
     room.traps = [];
     room.reset = null;
     room.events = [];
-    room.pets = room.pets
-      .filter((p) => !p.baby)
-      .map((p) => ({
+    room.pets = (room.originalPets.length ? room.originalPets : room.pets).map(
+      (p) => ({
         ...p,
         usage: 100,
         tipsy: false,
@@ -692,7 +716,11 @@ export class Rooms {
         acted: false,
         location: "camp",
         readyRound: 1,
-      }));
+        mating: undefined,
+      }),
+    );
+    for (const player of room.players)
+      player.petId = room.pets.find((p) => ownsPet(p, player.id))!.id;
     this.event(
       room,
       "A fresh hunt. Players and their original pets stay connected.",
@@ -709,7 +737,9 @@ export class Rooms {
       code,
       phase: r.phase,
       round: r.round,
-      maxRounds: 4,
+      endsAt: r.endsAt,
+      serverNow: this.now(),
+      winnerPetIds: [...r.winnerPetIds],
       generation: r.generation,
       players: r.players.map(({ token: _secret, ...p }) => ({ ...p })),
       pets: structuredClone(r.pets),

@@ -23,6 +23,8 @@ export function createGameServer(
   const rooms = new Rooms(brain, (code) =>
     io.to(code).emit("room:state", rooms.public(code)),
   );
+  const expiryTimer = setInterval(() => rooms.tick(), 100);
+  expiryTimer.unref();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "300kb" }));
   app.use((_req, res, next) => {
@@ -171,8 +173,12 @@ export function createGameServer(
     http,
     io,
     rooms,
-    close: () =>
-      new Promise<void>((done) => io.close(() => http.close(() => done()))),
+    close: () => {
+      clearInterval(expiryTimer);
+      return new Promise<void>((done) =>
+        io.close(() => http.close(() => done())),
+      );
+    },
   };
 }
 if (
@@ -182,7 +188,7 @@ if (
   const server = createGameServer();
   server.http.listen(Number(process.env.PORT) || 4174, "0.0.0.0", () =>
     console.log(
-      "Promptkeep room server ready on port",
+      "Feral room server ready on port",
       Number(process.env.PORT) || 4174,
     ),
   );

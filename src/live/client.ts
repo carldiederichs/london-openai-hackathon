@@ -12,6 +12,7 @@ export async function post<T>(path: string, body: unknown): Promise<T> {
   if (!reply.ok) throw new Error(reply.error);
   return reply.data;
 }
+// Keep the established storage key so the Feral rename preserves joined sessions.
 export const sessionKey = (role: string, code: string) =>
   `promptkeep:v1:${role}:${code}`;
 export function readSession(role: string, code: string): Session | null {

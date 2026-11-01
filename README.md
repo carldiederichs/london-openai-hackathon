@@ -1,4 +1,4 @@
-# Promptkeep
+# Feral
 
 A live castle hide-and-seek game for the London OpenAI hackathon. Up to ten phone players bring a pet, submit a move each round, and try to catch Todd, an AI-controlled dot. The host runs the hunt on a shared screen.
 
@@ -15,7 +15,7 @@ npm run dev
 
 Open **http://localhost:4173** on the host laptop. Click **Create room**, then let players scan the QR code or open the displayed join link on the same Wi-Fi. The host can start with 1–10 players. A description is enough to join; a resized PNG, JPEG or WebP image is optional.
 
-For an immediate movement demo, open **http://localhost:4173/practice** or choose **Try pet movement**. Send the pack to watch ten guardians travel to different rooms, or select one guardian and click a room. **Todd, run!** moves the visible practice hider. **Loop tour** waits for arrivals before repeating excursions for a shared screen; **Pause** freezes travel and sprite playback. Practice is local to the tab and makes no model calls.
+For a local rehearsal, open **http://localhost:4173/practice** and choose **Start · 1 minute**. The large clock counts down from 1:00; pets with usage remaining at zero share the win. The pack moves automatically, or select a pet and click a room. Practice moves cost 10 usage and the vet restores 50. **More** contains image upload, movement pause, auto-move and reset. Pausing movement does not pause the clock. Practice is local to the tab, makes no model calls, and omits the live game's hidden bottles and audience votes. Choose **Mating room** for two pets to rehearse their merge.
 
 Uploads accept ordinary pet images and Codex sprite sheets at **1536×1872** (9 rows) or **1536×2288** (11 rows). The importer preserves all eight columns and transparent cells, compressing the atlas to fit the existing upload limit. Idle and directional running frames play in the castle; a plain image remains a moving billboard. Practice uploads replace the selected guardian's artwork and retain its preset abilities. Live uploads still create model-backed cards.
 
@@ -31,14 +31,14 @@ Add `OPENAI_API_KEY` to `.env.local` locally, then restart `npm run dev`. Never 
 
 ## Play
 
-- **Four rounds; one capture wins.** Ten human seekers stay human-controlled. Todd is a separate shadow, rendered as a dark dot with white eyes.
+- **One minute; surviving pets win.** The server starts the 60-second deadline when the initial hiding step completes. At zero, ready pets with usage above zero win for their owners; ties share the win and zero survivors means no winner. Capturing Todd no longer ends the hunt, and rounds can continue until the deadline. Ten human seekers stay human-controlled. Todd is a separate shadow, rendered as a dark dot with white eyes.
 - Each pet has **20 points** split across flight, smallness, speed, climb and swim, with each stat between 1 and 8. A score of 5 unlocks that stat's room. Higher smallness means better access to narrow gaps. Speed also decides resolution order.
 - Todd starts from a seeker's card, redistributing points until its unlocked abilities differ from every original seeker. Its hiding spot must be legal for Todd and reachable by at least one ready seeker.
 - Each **player** submits one action per round, even if they own a baby. Seeking costs 10 usage. Prompts rotate through eight words, emoji only, two rhyming lines, then eight words.
 - The host resolves submitted moves together. Missing players rest; the host confirms before skipping them. Refreshing a tab restores its session and the latest room state.
 - Bottles cost another 25 usage and disappear after triggering. The red Tibo reset beneath his tavern portrait restores usage to 100 for the first searching pet each hunt. The vet restores up to 50, even from zero. Healing never grants another action.
-- Breeding needs reciprocal requests from two players. Both parents spend 20 usage and their actions. The faster parent owns the baby; ties use a stable pet ID ordering. The baby can act next round. A room can grow to 20 pets.
-- Todd's current location and private game objects are excluded from client state. A brief fictional move summary and its previous location appear after resolution. Todd moves again before the next round opens.
+- Entering the mating room reserves one of two places. When both pets arrive, an eight-second floating duvet and rising hearts precede their merge into one new pet. Both players own it; either can submit its single shared action. Its balanced card averages both parents; usage is their combined remaining usage minus 40, capped at 100. Parents are replaced, and restarting restores the original roster. The room stays full through the animation; a lone waiting pet can leave.
+- Todd's current location and private game objects are excluded from client state. A brief fictional move summary and its previous location are available in the Log after resolution. Todd moves again before the next round opens.
 
 ## Audience
 
@@ -48,7 +48,7 @@ Only one result is accepted per round. Seekers can hear a regional squeak or rul
 
 ## Rendering and controls
 
-Drag the castle to orbit; scroll or pinch to zoom. Click a room marker or open **Rooms** in the left overlay for keyboard-accessible room buttons. **Reset view** restores the camera. **Simple view** stops 3D rendering and keeps all controls available. WebGL failures use the same fallback. The castle fills the viewport. All controls live in transparent glass overlays at the left and right edges. Players, log and rules open on demand.
+Drag the castle to orbit; scroll or pinch to zoom. Click a room marker or open **Rooms** in the left overlay for keyboard-accessible room buttons. The **··· camera menu** contains zoom, Follow pet and Reset view. **Simple view** stops 3D rendering and keeps all controls available. WebGL failures use the same fallback. The castle fills the viewport. Controls live in transparent glass overlays at the left and right edges; the large countdown sits at the top centre. Players, log and rules open on demand.
 
 When any pet enters an interior location, the upper castle lifts and fades to reveal furnished rooms. It closes when every pet leaves. **Look inside** previews the cutaway without moving a pet. Pet and roof animation respect reduced-motion preferences.
 
@@ -66,6 +66,8 @@ npm start         # serves dist and the room server at http://localhost:4174
 ```
 
 `npm run preview` serves only static assets and does not run the room server. Use `npm start` to test the full production build. Set `PORT` and optionally `PUBLIC_URL` for a different local address. This project has not been deployed.
+
+The server finishes at the deadline even without connected clients. Reconnecting restores the original deadline; late model responses cannot change a finished hunt. An action still waiting on the model at the bell is not applied.
 
 Rooms, uploaded images, and reconnect identities are in memory. Restarting the server clears them. Session credentials stay in each browser tab's session storage; losing the host tab's storage loses its controls. At most 12 rooms are retained; rooms idle for six hours are cleared when a new room is created. This is a LAN hackathon build, without accounts or durable persistence.
 
@@ -89,7 +91,7 @@ Click the light rings to select destinations. Hover shows access rules and a des
 
 Large pets (smallness 3 or less) reach the belfry rope; tiny pets reach burrows and drains. Water rooms require swimming, high rooms require flight, and cats, owls and ghosts have night vision for the crypt and cold storage. Some specialist destinations require 6 rather than 5 points. Cards retain the 20-point budget.
 
-The nursery reveals a bed with an animated duvet and floating hearts during reciprocal breeding. The clinic reveals a treatment table, IV stand and healing cross. Hidden Temperature 2.0 bottles cost 25 extra usage, make pets visibly tipsy, and reduce move priority by 2 without changing room access. Tipsiness lasts until the vet, Tibo reset, or a new hunt; babies do not inherit it. Discovered bottles and the reset button appear briefly beside the discovering pet. Bottle locations remain server-only; the reset now lives beneath Tibo’s tavern portrait.
+The nursery reveals a bed with an animated duvet and floating hearts when both mating-room pets arrive. The clinic reveals a treatment table, IV stand and healing cross. Hidden Temperature 2.0 bottles cost 25 extra usage, make pets visibly tipsy, and reduce move priority by 2 without changing room access. Tipsiness lasts until the vet, Tibo reset, or a new hunt; babies do not inherit it. Discovered bottles and the reset button appear briefly beside the discovering pet. Bottle locations remain server-only; the reset now lives beneath Tibo’s tavern portrait.
 
 Sixteen original fictional pixel-pet ancestor portraits hang across the rooms. Select Hallucination Hall to inspect their histories. Petdex shows each current pet's card, traits, lineage and reachable places, with a link to the external Petdex gallery. No external pet downloads or account installs are automatic.
 
@@ -105,3 +107,5 @@ Portrait generation prompt: preserve Tibo’s recognizable face, smile and head 
 match the pet atlas’s chunky pixel art, warm candlelight, dark mansion backdrop
 and antique clothing. One square bust, no text or frame.
 Asset: `public/tibo-pixel.png`.
+
+Max’s companion update (`9fb5bc8`) is integrated selectively: ten original Codex sprite sheets in the live join picker and **More → Codex companions** in practice. Practice companion selection changes artwork while keeping the selected guardian’s card; live joining scores a fresh balanced card. Existing 3D guardians, castle geometry and routes remain available.

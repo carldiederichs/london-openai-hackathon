@@ -300,3 +300,102 @@ export const PREVIEW_PETS: Pet[] = STARTERS.map(
     acted: false,
   }),
 );
+
+// Species are game ability archetypes; artwork and names retain the real pet identity.
+const CODEX_STARTERS: Array<[string, string, Species, string, string, 9 | 11]> =
+  [
+    [
+      "dewey",
+      "Dewey",
+      "frog",
+      "#69cfff",
+      "A small water droplet, a calm and capable swimmer.",
+      11,
+    ],
+    [
+      "fireball",
+      "Fireball",
+      "dragon",
+      "#ff9b46",
+      "A fiery companion with a bright flame and quick feet.",
+      11,
+    ],
+    [
+      "hoots",
+      "Hoots",
+      "owl",
+      "#eaa23d",
+      "A sharp-eyed owl who can fly and see in the dark.",
+      11,
+    ],
+    [
+      "rocky",
+      "Rocky",
+      "cat",
+      "#ad9878",
+      "A sturdy little rock who climbs steadily.",
+      11,
+    ],
+    [
+      "seedy",
+      "Seedy",
+      "bunny",
+      "#afc86b",
+      "A tiny sprout who fits through narrow spaces.",
+      11,
+    ],
+    [
+      "stacky",
+      "Stacky",
+      "robot",
+      "#a28aba",
+      "A tall balanced stack of small purple robots.",
+      11,
+    ],
+    [
+      "bsod",
+      "BSOD",
+      "robot",
+      "#63baff",
+      "A nimble blue-screen robot with an antenna.",
+      11,
+    ],
+    [
+      "null-signal",
+      "Null Signal",
+      "ghost",
+      "#9c9bb7",
+      "A quiet dark companion who slips through shadows.",
+      11,
+    ],
+    [
+      "codex",
+      "Codex",
+      "robot",
+      "#f2d9a4",
+      "The original Codex companion, a curious little coding robot.",
+      11,
+    ],
+    [
+      "tung-tung",
+      "Tung Tung",
+      "dog",
+      "#be8c56",
+      "A tall wooden companion with huge eyes and a wooden bat.",
+      9,
+    ],
+  ];
+export const CODEX_PETS: (Pet & { description: string })[] = CODEX_STARTERS.map(
+  ([slug, name, species, color, description, spriteRows]) => ({
+    id: slug,
+    name,
+    species,
+    color,
+    description,
+    image: `/pets/${slug}.webp`,
+    spriteRows,
+    usage: 100,
+    location: "camp",
+    acted: false,
+  }),
+);

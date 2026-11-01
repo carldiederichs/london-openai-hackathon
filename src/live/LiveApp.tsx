@@ -1,7 +1,9 @@
+import { matingBusy, matingOccupants } from "./mating";
+import { ownsPet } from "./shared";
 import { ANCESTORS, ROOM_LORE } from "./lore";
 import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { PREVIEW_PETS } from "../pets";
+import { CODEX_PETS, PREVIEW_PETS } from "../pets";
 import PetAvatar from "../PetAvatar";
 import {
   accessible,
@@ -26,13 +28,14 @@ import {
   useRoom,
 } from "./client";
 import Cheering from "./Cheering";
+import HuntClock, { useSecondsLeft } from "./HuntClock";
 import type { Travel } from "./CastleWorld";
 import "./live.css";
 const CastleWorld = lazy(() => import("./CastleWorld"));
 const previewPets = PREVIEW_PETS;
 const locationName = (id: string) =>
   LIVE_LOCATIONS.find((l) => l.id === id)?.name ||
-  ({ camp: "Base camp", vet: "The vet", nursery: "Nursery" }[id] ?? id);
+  ({ camp: "Base camp", vet: "The vet", nursery: "Mating room" }[id] ?? id);
 function StatsCard({ stats }: { stats: Stats }) {
   return (
     <div className="stat-grid">
@@ -113,6 +116,7 @@ function JoinForm({
     [description, setDescription] = useState(""),
     [image, setImage] = useState(""),
     [spriteRows, setSpriteRows] = useState<9 | 11 | undefined>(),
+    [chosenPet, setChosenPet] = useState(""),
     [busy, setBusy] = useState(false),
     [reading, setReading] = useState(false),
     [error, setError] = useState("");
@@ -136,8 +140,50 @@ function JoinForm({
   }
   return (
     <section className="live-panel join-form">
-      <p>Upload an image or describe your pet. Every card has 20 points.</p>
+      <p>
+        Choose a Codex pet, upload your own, or describe one. Every card has 20
+        points.
+      </p>
       <form onSubmit={join}>
+        <fieldset className="codex-pet-picker" disabled={busy || reading}>
+          <legend>Choose your companion</legend>
+          <div className="practice-pets">
+            {CODEX_PETS.map((p) => (
+              <button
+                type="button"
+                key={p.id}
+                aria-label={`Choose ${p.name}`}
+                aria-pressed={chosenPet === p.id}
+                onClick={async () => {
+                  setReading(true);
+                  setError("");
+                  try {
+                    const response = await fetch(p.image!);
+                    if (!response.ok)
+                      throw new Error("Could not load that pet. Try again.");
+                    const prepared = await preparePetImage(
+                      new File([await response.blob()], `${p.id}.webp`, {
+                        type: "image/webp",
+                      }),
+                    );
+                    setImage(prepared.image);
+                    setSpriteRows(prepared.spriteRows);
+                    setName(p.name);
+                    setDescription(p.description);
+                    setChosenPet(p.id);
+                  } catch (error) {
+                    setError((error as Error).message);
+                  } finally {
+                    setReading(false);
+                  }
+                }}
+              >
+                <PetAvatar pet={p} />
+                <span>{p.name}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <label>
           Pet name
           <input
@@ -173,6 +219,7 @@ function JoinForm({
                 const prepared = await preparePetImage(file);
                 setImage(prepared.image);
                 setSpriteRows(prepared.spriteRows);
+                setChosenPet("");
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -197,6 +244,7 @@ function JoinForm({
               onClick={() => {
                 setImage("");
                 setSpriteRows(undefined);
+                setChosenPet("");
               }}
             >
               Remove image
@@ -240,11 +288,10 @@ function PlayerControls({
   send: (event: string, data?: unknown) => Promise<void>;
   onPet: (p: LivePet) => void;
 }) {
-  const owned = room.pets.filter((p) => p.ownerId === session.playerId),
+  const owned = room.pets.filter((p) => ownsPet(p, session.playerId)),
     [selected, setSelected] = useState(""),
     [action, setAction] = useState<"seek" | "breed" | "vet">("seek"),
     [prompt, setPrompt] = useState(""),
-    [partner, setPartner] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const pet = owned.find((p) => p.id === selected) || owned[0],
@@ -268,7 +315,7 @@ function PlayerControls({
         action === "seek"
           ? { type: "seek", petId: pet.id, prompt }
           : action === "breed"
-            ? { type: "breed", petId: pet.id, partnerId: partner }
+            ? { type: "breed", petId: pet.id }
             : { type: "vet", petId: pet.id };
       await send("player:submit", {
         move,
@@ -286,7 +333,9 @@ function PlayerControls({
     busy ||
     room.phase !== "seeking" ||
     locked ||
-    pet.readyRound > room.round;
+    pet.readyRound > room.round ||
+    matingBusy(pet) ||
+    (pet.location === "nursery" && matingOccupants(room.pets).length === 2);
   return (
     <section className="live-panel player-controls">
       <div className="pet-identity">
@@ -334,15 +383,12 @@ function PlayerControls({
       <details>
         <summary>Abilities · 20 points</summary>
         <StatsCard stats={pet.stats} />
-        <small>
-          A score of 5 unlocks its room. Speed decides action order.
-        </small>
       </details>
       {room.phase === "lobby" ? (
         <p className="state-note">
           You're in! Waiting for the host to start the hunt.
         </p>
-      ) : locked ? (
+      ) : room.phase === "over" ? null : locked ? (
         <p className="state-note" role="status">
           Move locked in. Watch the castle when the host resolves the round.
         </p>
@@ -356,7 +402,7 @@ function PlayerControls({
               disabled={unavailable}
             >
               <option value="seek">Move + seek · 10 usage</option>
-              <option value="breed">Breed · 20 usage per parent</option>
+              <option value="breed">Enter mating room</option>
               <option value="vet">Visit the vet · restore up to 50</option>
             </select>
           </label>
@@ -373,40 +419,16 @@ function PlayerControls({
                   disabled={unavailable}
                 />
               </label>
-              <small>
-                {validatePrompt(prompt, room.constraint) ||
-                  "Ready to send. The game enforces your pet’s abilities."}
-              </small>
+              {prompt && validatePrompt(prompt, room.constraint) && (
+                <small>{validatePrompt(prompt, room.constraint)}</small>
+              )}
             </>
           ) : action === "breed" ? (
-            <>
-              <label>
-                Other parent
-                <select
-                  value={partner}
-                  onChange={(e) => setPartner(e.target.value)}
-                  disabled={unavailable}
-                >
-                  <option value="">Choose another player's pet</option>
-                  {room.pets
-                    .filter(
-                      (p) =>
-                        p.ownerId !== session.playerId &&
-                        p.readyRound <= room.round,
-                    )
-                    .map((p) => (
-                      <option key={p.id} value={p.id} disabled={p.usage < 20}>
-                        {p.name} · {p.usage} usage
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <p>
-                Both players must choose each other's pet this round. The faster
-                parent’s player owns the baby, ready next round. Both players
-                spend their action.
-              </p>
-            </>
+            <p>
+              {matingOccupants(room.pets).length}/2 places occupied. Two pets
+              merge under the duvet. Both players share the new pet; each
+              contributes 20 usage.
+            </p>
           ) : (
             <p>
               The vet restores 50 usage, up to 100. This uses your turn. Pets
@@ -421,7 +443,10 @@ function PlayerControls({
                 (!!validatePrompt(prompt, room.constraint) ||
                   pet.usage < 10)) ||
               (action === "vet" && pet.usage === 100) ||
-              (action === "breed" && (!partner || pet.usage < 20))
+              (action === "breed" &&
+                (pet.usage < 20 ||
+                  pet.location === "nursery" ||
+                  matingOccupants(room.pets).length >= 2))
             }
           >
             {busy
@@ -451,6 +476,7 @@ export default function LiveApp() {
   );
   const { room, connected, error: connectionError, send } = useRoom(session);
   const [travel, setTravel] = useState<Travel[]>([]);
+  const seconds = useSecondsLeft(room?.endsAt ?? null, room?.serverNow);
   const [selected, setSelected] = useState("courtyard"),
     [pet, setPet] = useState<LivePet | null>(null),
     [joinCode, setJoinCode] = useState(""),
@@ -566,8 +592,16 @@ export default function LiveApp() {
   return (
     <main
       className={`live-app ${code && role === "player" ? "has-player" : ""} ${panel ? "panel-open" : ""}`}
-      aria-label="Castle hide and seek"
+      aria-label="Feral castle"
     >
+      <HuntClock
+        seconds={room?.phase === "over" ? 0 : seconds}
+        finished={room?.phase === "over"}
+        waiting={!room || room.endsAt === null}
+        winners={room?.pets
+          .filter((p) => room.winnerPetIds.includes(p.id))
+          .map((p) => p.name)}
+      />
       <Suspense
         fallback={
           <div className="world-loading" role="status">
@@ -577,6 +611,7 @@ export default function LiveApp() {
       >
         <CastleWorld
           pets={room?.pets || previewPets}
+          paused={room?.phase === "over"}
           selected={selected}
           todd={room?.phase === "lobby" ? "courtyard" : room?.reveal?.location}
           selectedPet={pet?.id}
@@ -644,7 +679,7 @@ export default function LiveApp() {
                   ←
                 </a>
                 <span>{code}</span>
-                {room && <span>R{room.round}/4</span>}
+                {room && room.phase !== "lobby" && <span>R{room.round}</span>}
                 <i
                   className={connected ? "online" : "offline"}
                   title={connected ? "Connected" : "Reconnecting"}
@@ -659,19 +694,7 @@ export default function LiveApp() {
               )}
             </>
           )}
-          <small className="ai-label">
-            {ai?.configured ? "AI enabled" : "Offline rules"}
-            {room && room.ai.fallbackCount > 0
-              ? ` · ${room.ai.fallbackCount} fallbacks`
-              : ""}
-          </small>
-          {travel.length > 0 && (
-            <small role="status">
-              {travel.length === 1
-                ? "1 guardian travelling to its room…"
-                : `${travel.length} guardians travelling to their rooms…`}
-            </small>
-          )}
+          {!ai?.configured && <small className="ai-label">Offline rules</small>}
           {room && isHost && (
             <div className="round-buttons">
               {room.phase === "lobby" && (
@@ -680,7 +703,7 @@ export default function LiveApp() {
                   disabled={busy || !connected || !room.players.length}
                   onClick={() => command("host:start")}
                 >
-                  Start hunt
+                  Start · 1 minute
                 </button>
               )}
               {room.phase === "seeking" && (
@@ -715,95 +738,110 @@ export default function LiveApp() {
                     : "Resolving moves…"}
                 </p>
               )}
-              <button
-                disabled={
-                  busy ||
-                  !connected ||
-                  ["hiding", "resolving"].includes(room.phase)
-                }
-                onClick={() => setConfirm("restart")}
-              >
-                Reset hunt
-              </button>
+              {room.phase === "over" ? (
+                <button
+                  disabled={busy || !connected}
+                  onClick={() => command("host:restart")}
+                >
+                  Play again
+                </button>
+              ) : (
+                <details className="secondary-controls">
+                  <summary>More</summary>{" "}
+                  <button
+                    disabled={
+                      busy ||
+                      !connected ||
+                      ["hiding", "resolving"].includes(room.phase)
+                    }
+                    onClick={() => setConfirm("restart")}
+                  >
+                    Reset hunt
+                  </button>
+                </details>
+              )}
             </div>
           )}
         </div>
-        <nav className="glass side-tools" aria-label="Game panels">
-          <button
-            aria-label="Rooms"
-            title="Rooms"
-            aria-pressed={panel === "rooms"}
-            onClick={() => toggle("rooms")}
-          >
-            <span className="tool-icon" aria-hidden="true">
-              ◇
-            </span>
-            <span className="tool-name">Rooms</span>
-          </button>
-          {room && (
-            <>
-              <button
-                aria-label="Petdex"
-                title="Petdex"
-                aria-pressed={panel === "players"}
-                onClick={() => toggle("players")}
-              >
-                <span className="tool-icon" aria-hidden="true">
-                  ♟
-                </span>
-                <span className="tool-name">Petdex</span>
-              </button>
-              <button
-                aria-label="Log"
-                title="Log"
-                aria-pressed={panel === "log"}
-                onClick={() => toggle("log")}
-              >
-                <span className="tool-icon" aria-hidden="true">
-                  ≡
-                </span>
-                <span className="tool-name">Log</span>
-              </button>
-              {isHost && (
-                <>
-                  <button
-                    aria-label="Invite"
-                    title="Invite"
-                    aria-pressed={panel === "join"}
-                    onClick={() => toggle("join")}
-                  >
-                    <span className="tool-icon" aria-hidden="true">
-                      +
-                    </span>
-                    <span className="tool-name">Invite</span>
-                  </button>
-                  <button
-                    aria-label="Audience"
-                    title="Audience"
-                    aria-pressed={panel === "cheer"}
-                    onClick={() => toggle("cheer")}
-                  >
-                    <span className="tool-icon" aria-hidden="true">
-                      ♪
-                    </span>
-                    <span className="tool-name">Audience</span>
-                  </button>
-                </>
-              )}
-            </>
-          )}
-          <button
-            aria-label="Rules"
-            title="Rules"
-            aria-pressed={panel === "rules"}
-            onClick={() => toggle("rules")}
-          >
-            <span className="tool-icon" aria-hidden="true">
-              ?
-            </span>
-            <span className="tool-name">Rules</span>
-          </button>
-        </nav>
+        <details className="glass utility-menu">
+          <summary>Menu</summary>
+          <nav className="side-tools" aria-label="Game panels">
+            <button
+              aria-label="Rooms"
+              title="Rooms"
+              aria-pressed={panel === "rooms"}
+              onClick={() => toggle("rooms")}
+            >
+              <span className="tool-icon" aria-hidden="true">
+                ◇
+              </span>
+              <span className="tool-name">Rooms</span>
+            </button>
+            {room && (
+              <>
+                <button
+                  aria-label="Petdex"
+                  title="Petdex"
+                  aria-pressed={panel === "players"}
+                  onClick={() => toggle("players")}
+                >
+                  <span className="tool-icon" aria-hidden="true">
+                    ♟
+                  </span>
+                  <span className="tool-name">Petdex</span>
+                </button>
+                <button
+                  aria-label="Log"
+                  title="Log"
+                  aria-pressed={panel === "log"}
+                  onClick={() => toggle("log")}
+                >
+                  <span className="tool-icon" aria-hidden="true">
+                    ≡
+                  </span>
+                  <span className="tool-name">Log</span>
+                </button>
+                {isHost && (
+                  <>
+                    <button
+                      aria-label="Invite"
+                      title="Invite"
+                      aria-pressed={panel === "join"}
+                      onClick={() => toggle("join")}
+                    >
+                      <span className="tool-icon" aria-hidden="true">
+                        +
+                      </span>
+                      <span className="tool-name">Invite</span>
+                    </button>
+                    <button
+                      aria-label="Audience"
+                      title="Audience"
+                      aria-pressed={panel === "cheer"}
+                      onClick={() => toggle("cheer")}
+                    >
+                      <span className="tool-icon" aria-hidden="true">
+                        ♪
+                      </span>
+                      <span className="tool-name">Audience</span>
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+            <button
+              aria-label="Rules"
+              title="Rules"
+              aria-pressed={panel === "rules"}
+              onClick={() => toggle("rules")}
+            >
+              <span className="tool-icon" aria-hidden="true">
+                ?
+              </span>
+              <span className="tool-name">Rules</span>
+            </button>
+          </nav>
+        </details>
         {panel === "rooms" && roomMenu}
         {confirm && (
           <div className="glass confirm-panel" role="alert">
@@ -845,13 +883,6 @@ export default function LiveApp() {
               </button>
             )}
           </div>
-        )}
-        {room?.outcome && (
-          <p className="glass outcome" role="status">
-            {room.outcome === "caught"
-              ? "Todd caught. Seekers win."
-              : "Todd escaped after four rounds."}
-          </p>
         )}
       </aside>
       <aside className="hud hud-right" aria-label="Player and game details">
@@ -917,7 +948,7 @@ export default function LiveApp() {
             {room.clue}
           </p>
         )}
-        {room?.reveal && (
+        {room?.reveal && panel === "log" && (
           <div className="glass reveal-panel">
             <p>Todd was in {locationName(room.reveal.location)}.</p>
             <details>
@@ -989,8 +1020,10 @@ export default function LiveApp() {
         {panel === "rules" && (
           <div className="glass rules">
             <p>
-              Find Todd once within four rounds. Each player submits one action;
-              the host resolves them together.
+              Survive one minute. Pets with usage above zero at the bell win;
+              multiple survivors share the win. Each player submits one action
+              per round; the host resolves them together. Catching Todd does not
+              stop the clock. Ready babies can also survive for their owner.
             </p>
             <p>
               Seek costs 10 usage. Traps cost another 25. The vet restores up to
