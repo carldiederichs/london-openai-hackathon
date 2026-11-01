@@ -160,6 +160,13 @@ export function accessible(pet: { stats: Stats }, locationId: string): boolean {
 // Largest-remainder allocation with a floor of 1 and a ceiling of 8 per stat.
 // Never trust a model's proposed total or let an image purchase a stronger card.
 export function balanceStats(input: Partial<Stats>): Stats {
+  if (
+    STAT_KEYS.every(
+      (k) => Number.isInteger(input[k]) && input[k]! >= 1 && input[k]! <= 8,
+    ) &&
+    STAT_KEYS.reduce((n, k) => n + input[k]!, 0) === 20
+  )
+    return { ...input } as Stats;
   const weights = STAT_KEYS.map((k) =>
     Number.isFinite(input[k]) ? Math.max(1, Math.min(20, Number(input[k]))) : 4,
   );
@@ -187,7 +194,7 @@ export function validatePrompt(
     return "This round allows at most eight words.";
   if (
     constraint === "emoji" &&
-    (/\p{L}/u.test(prompt) || !/\p{Extended_Pictographic}/u.test(prompt))
+    (/[\p{L}\p{N}]/u.test(prompt) || !/\p{Extended_Pictographic}/u.test(prompt))
   )
     return "Use emoji only this round, with optional spaces or punctuation.";
   if (

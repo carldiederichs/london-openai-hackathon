@@ -58,8 +58,8 @@ reviewable in PR #1. Live-mode changes follow on a separate branch.
 
 ## Verification and delivery
 
-- [ ] Add and run server/rule tests for room isolation, identity, reconnects, limits,
-      duplicate round resolution, secret-state filtering, AI fallbacks, and new mechanics.
+- [x] Add and run server/rule tests for room isolation, identity, reconnects, limits,
+      duplicate round resolution, secret-state filtering, AI fallbacks, and new mechanics. 25 tests pass, including HTTP/Socket.IO integration; typecheck and build pass.
 - [ ] Play through separate host and seeker browser sessions; verify multiple players,
       reconnect, every action, one cheering advantage, capture, escape, and reset.
 - [ ] **Blocked**: Verify real model-backed cards, seeker moves, and hider decisions.
