@@ -328,3 +328,41 @@ test("a phone settles the deadline without waiting for an absent host", async (t
     w.sqlite.close();
   }
 });
+
+test("a rejected late command cannot discard a Dot capture reached during that request", async (t) => {
+  let clock = Date.now();
+  t.mock.method(Date, "now", () => clock);
+  const w = await world(2);
+  try {
+    await w.action(w.host, "host:start");
+    w.edit((r) => {
+      r.dot = "garden";
+      r.traps = [];
+      const p = r.pets[0];
+      r.cursors.set(p.id, {
+        node: "gardenDoor",
+        to: "garden",
+        progress: 0.999,
+      });
+      p.position = roomPoint("garden");
+      r.destinations.set(p.id, "garden");
+    });
+    clock += 200;
+    const rejected = await w.action(w.players[1], "player:destination", {
+      generation: 1,
+      location: "vet",
+    });
+    assert.equal(rejected.ok, false);
+    const saved = JSON.parse(
+      (
+        w.sqlite
+          .prepare("SELECT snapshot FROM feral_games WHERE code=?")
+          .get(w.code) as any
+      ).snapshot,
+    );
+    assert.equal(saved.phase, "over");
+    assert.equal(saved.outcome, "found");
+  } finally {
+    w.sqlite.close();
+  }
+});

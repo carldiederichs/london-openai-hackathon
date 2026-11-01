@@ -98,7 +98,7 @@ See [PLAN.md](PLAN.md) and [verification notes](docs/VERIFICATION.md) for comple
 
 Owen's updated PR #3 demonstrates the hosting approach: a **Sites-managed Worker and D1 database**, with HTTP polling for shared state. Sites provisions these resources. You do not need to operate a separate Cloudflare account, Worker deployment or WebSocket server. There is still a server: Sites runs it behind the same public URL.
 
-Feral keeps its complete castle and `Rooms` rules rather than replacing them with the PR's separate movement sandbox. D1 stores private game snapshots, per-session views, ordered controller inputs and custom pet images. A database lease and guarded transaction serialize each room's changes across Worker instances. Phones poll one request at a time; the simulation advances in short steps so slower refreshes do not change travel speed. Releases and stale inputs stop movement.
+Feral keeps its complete castle and `Rooms` rules rather than replacing them with the PR's separate movement sandbox. D1 stores private game snapshots, per-session views, ordered controller inputs and custom pet images. A database lease and guarded transaction serialize each room's changes across Worker instances. Phones poll one request at a time; the simulation advances in short steps so slower refreshes do not change travel speed. Direction changes and releases send immediately instead of waiting for a state poll. Sites expires an unrefreshed input after 1.5 seconds to allow for polling latency; the local WebSocket transport retains its 350 ms timeout.
 
 ```bash
 npm ci
@@ -107,13 +107,16 @@ npm run sites:check
 npm run build:sites
 npm run sites:migrate # local D1 only
 npm run sites:dev     # http://localhost:8792
+GAME_BACKEND=https://feral-hackathon.sugarybrine.chatgpt.site PLAYERS=300 npm run test:sites
 ```
 
 The build embeds the frontend, castle art and all ten complete animated pet atlases in `dist/server/index.js`. It optimizes delivered image sizes while preserving original artwork in `public/`. `.openai/hosting.json` retains Feral's existing Sites identity and declares its D1 binding. Publish the built artifact through Sites; Sites applies generated migrations before deploying it. Configure `OPENAI_API_KEY` as a **Sites runtime secret**, never in source or a `VITE_` variable.
 
 The host and phone use one stored deadline. When no devices are polling, the Sites game does not run a background interval; the next request settles the expired game before accepting an action. Stop freezes the deadline and gameplay; reconnecting does not restart it. The separately deployed Durable Object implementation remains in `worker/` as a previous transport, with its original tests, and is not required by the Sites-only build.
 
-Capacity is capped at 300 players plus a host. Earlier 301-WebSocket tests apply to the Node and Durable Object transports, **not** to Sites/D1 polling. See [verification notes](docs/VERIFICATION.md) for the specific checks completed against each deployment. Venue devices and network conditions need their own rehearsal.
+For an automated full search, create a separate test room, then run `GAME_BACKEND=https://feral-hackathon.sugarybrine.chatgpt.site ROOM_CODE=ABC123 npx tsx scripts/play-sites.ts`. Replace `ABC123` with that room’s actual code; wait for the script’s ready message, then press Start in its host tab. The script joins 42 legal seekers and sends them to the hiding places. Do not run it in a room used by players.
+
+Capacity is capped at 300 players plus a host. Earlier 301-WebSocket tests apply to the Node and Durable Object transports, **not** to Sites/D1 polling. The public Sites check completed 300 simulated phones without failed requests; its latest measured median was 676 ms and p95 was 2,098 ms, so a full crowd can still feel delayed. See [verification notes](docs/VERIFICATION.md) for exact checks against each deployment. Venue devices and network conditions need their own rehearsal.
 
 ## Code map
 

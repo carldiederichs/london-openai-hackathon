@@ -73,7 +73,7 @@ function view(
       };
 }
 // Replay elapsed simulation in short steps, preserving path speed under HTTP polling.
-// Sites allows 750ms for a controller refresh; releases stop sooner. The local
+// Sites allows 1500ms for a controller refresh; releases stop sooner. The local
 // WebSocket transport keeps its shorter 350ms dead-man timeout.
 function advance(
   rooms: Rooms,
@@ -101,7 +101,7 @@ async function mutate(
   if (!lock) return;
   try {
     const room = lock.room;
-    room.inputTimeoutMs = 750;
+    room.inputTimeoutMs = 1500;
     const now = { value: room.lastTick, live: false },
       rooms = new Rooms(
         brain ?? createBrain(env.OPENAI_API_KEY, env.OPENAI_MODEL),
@@ -123,7 +123,7 @@ async function mutate(
       if (
         row.input &&
         row.seq > (room.sitesInputs?.[session.token] ?? -1) &&
-        target - row.seen < 750 &&
+        target - row.seen < 1500 &&
         room.phase === "seeking" &&
         room.pausedAt === null
       ) {
@@ -136,7 +136,14 @@ async function mutate(
       }
     }
     now.live = true;
-    const result = await action?.(rooms, room);
+    let result: unknown, actionError: unknown;
+    try {
+      result = await action?.(rooms, room);
+    } catch (error) {
+      actionError = error;
+    }
+    // Simulation may have found the Dot or reached expiry before this command.
+    // Persist that result even when the now-too-late command must be rejected.
     now.value = Date.now();
     const imageStatements = [...room.images].map(([id, data]) =>
       env.DB.prepare(
@@ -174,6 +181,7 @@ async function mutate(
     const saved = await env.DB.batch(writes);
     if (!saved.at(-1)?.meta.changes)
       throw new Error("Game update expired. Please retry.");
+    if (actionError) throw actionError;
     return result;
   } finally {
     await env.DB.prepare(

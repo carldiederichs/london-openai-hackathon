@@ -647,7 +647,9 @@ export default function LiveApp() {
       .then(setConfig)
       .catch(() =>
         setError(
-          "The room server is unavailable. Run npm run dev, then reload.",
+          ["sites", "durable"].includes(import.meta.env.VITE_GAME_TRANSPORT)
+            ? "Connection interrupted. Reload to reconnect."
+            : "The room server is unavailable. Run npm run dev, then reload.",
         ),
       );
   }, []);
@@ -925,7 +927,9 @@ export default function LiveApp() {
               )}
             </>
           )}
-          {!ai?.configured && <small className="ai-label">Offline rules</small>}
+          {ai && !ai.configured && (
+            <small className="ai-label">Offline rules</small>
+          )}
           {room && isHost && (
             <div className="round-buttons">
               {room.mode !== "realtime" && room.phase === "seeking" && (
@@ -985,8 +989,10 @@ export default function LiveApp() {
             </div>
           )}
         </div>
-        {room && isHost && room.mode === "realtime" ? (
-          <QRJoin code={room.code} base={config?.joinBase || ""} compact />
+        {isHost && (!room || room.mode === "realtime") ? (
+          room ? (
+            <QRJoin code={room.code} base={config?.joinBase || ""} compact />
+          ) : null
         ) : (
           <details className="glass utility-menu">
             <summary>Menu</summary>

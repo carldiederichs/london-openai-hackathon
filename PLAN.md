@@ -248,3 +248,5 @@ Owen's updated draft PR #3 (`756652f`) is available. His Sites Worker + D1 appro
 - [x] Public nine-player traitor rehearsal: browser phone visibly banned, relocated to Pet Memorials, usage zero, movement/care disabled, normal final winner.
 - [x] Complete two local browser games including pause/reconnect/resume, vet, shared breeding and winner screens; 53 rules/transport tests pass after an absent-host deadline regression fix.
 - [ ] Repeat public games and crowd latency check after the QR/menu and polling update, then publish any further fixes. Keep user room 5F7AEC separate from test rooms.
+- [x] Reproduced and fixed a Dot-capture rollback caused by rejecting a command after the simulation ended the game. Regression failed before the fix; all 54 tests pass after it.
+- [x] Public QR-only host overlay verified, preserving the existing room. Removed connecting-state menu/offline flashes in the follow-up.
