@@ -456,7 +456,9 @@ export class Rooms {
       );
       interpreted.sort(
         (a, b) =>
-          b.pet.stats.speed - a.pet.stats.speed ||
+          b.pet.stats.speed -
+            (b.pet.tipsy ? 2 : 0) -
+            (a.pet.stats.speed - (a.pet.tipsy ? 2 : 0)) ||
           a.pet.id.localeCompare(b.pet.id),
       );
       const bred = new Set<string>();
@@ -464,10 +466,13 @@ export class Rooms {
       for (const { owner, input, pet, move } of interpreted) {
         if (bred.has(pet.id)) continue;
         pet.acted = true;
+        pet.effect = undefined;
         if (input.type === "vet") {
           const restored = Math.min(50, 100 - pet.usage);
           pet.usage += restored;
           pet.location = "vet";
+          pet.tipsy = false;
+          pet.effect = { kind: "vet", at: Date.now() };
           this.event(
             room,
             `${pet.name} visited the vet. +${restored} usage.`,
@@ -498,6 +503,7 @@ export class Rooms {
           partner.usage -= 20;
           partner.acted = true;
           pet.location = partner.location = "nursery";
+          pet.effect = partner.effect = { kind: "breed", at: Date.now() };
           bred.add(pet.id);
           bred.add(partner.id);
           const stats = balanceStats(
@@ -514,6 +520,8 @@ export class Rooms {
             usage: 100,
             readyRound: room.round + 1,
             baby: true,
+            tipsy: false,
+            effect: undefined,
             acted: true,
             color: partner.color,
             flavor: `A little mix of ${pet.name} and ${partner.name}.`,
@@ -547,17 +555,21 @@ export class Rooms {
           if (room.traps.includes(pet.location)) {
             room.traps = room.traps.filter((id) => id !== pet.location);
             pet.usage = Math.max(0, pet.usage - 25);
+            pet.tipsy = true;
+            pet.effect = { kind: "bottle", at: Date.now() };
             this.event(
               room,
-              `${pet.name} triggered a bottle trap at ${location.name}. −25 usage.`,
+              `${pet.name} found a temperature-2.0 bottle at ${location.name}. −25 usage; tipsy until a vet visit or reset.`,
               "trap",
             );
           } else if (room.reset === pet.location) {
             room.reset = null;
             pet.usage = 100;
+            pet.tipsy = false;
+            pet.effect = { kind: "reset", at: Date.now() };
             this.event(
               room,
-              `${pet.name} found the Tivo reset. Usage restored to 100.`,
+              `${pet.name} found the Tibo reset. Usage restored to 100.`,
               "heal",
             );
           }
@@ -660,6 +672,8 @@ export class Rooms {
       .map((p) => ({
         ...p,
         usage: 100,
+        tipsy: false,
+        effect: undefined,
         acted: false,
         location: "camp",
         readyRound: 1,

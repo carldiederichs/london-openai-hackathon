@@ -161,6 +161,9 @@ test("traps are consumed once, reset caps usage, vet works at zero, illegal AI m
       .sort(),
     [65, 90],
   );
+  assert.equal(room.pets.filter((p) => p.tipsy).length, 1);
+  assert.equal(room.pets[2].effect?.kind, "reset");
+  assert.equal(room.pets[2].tipsy, false);
   assert.equal(room.pets[2].usage, 100);
   assert.equal(room.reset, null);
   await rooms.next(host);
@@ -175,6 +178,8 @@ test("traps are consumed once, reset caps usage, vet works at zero, illegal AI m
   const before = room.pets[1].usage;
   await rooms.resolve(host, 2, 1);
   assert.equal(room.pets[0].usage, 50);
+  assert.equal(room.pets[0].tipsy, false);
+  assert.equal(room.pets[0].effect?.kind, "vet");
   assert.equal(room.pets[1].usage, before);
 });
 test("breeding needs reciprocal consent and only grants a baby next round", async () => {
@@ -191,6 +196,9 @@ test("breeding needs reciprocal consent and only grants a baby next round", asyn
   await rooms.resolve(host, 1, 1);
   assert.equal(room.pets.length, 3);
   assert.equal(room.pets[2].readyRound, 2);
+  assert.equal(room.pets[0].effect?.kind, "breed");
+  assert.equal(room.pets[1].effect?.kind, "breed");
+  assert.equal(room.pets[2].effect, undefined);
   assert.equal(room.pets[0].usage, 80);
   assert.equal(room.pets[1].usage, 80);
   await rooms.next(host);
@@ -397,4 +405,31 @@ test("real HTTP and Socket.IO clients authenticate, sync, reconnect and isolate 
     true,
   );
   assert.equal(server.rooms.public(host.roomCode).outcome, "caught");
+});
+
+test("specialist habitats enforce swimming, flying, size, height and night vision", () => {
+  const base = {
+    species: "dog",
+    stats: { flight: 4, smallness: 4, speed: 4, climb: 4, swim: 4 },
+  };
+  for (const id of ["cistern", "rookery", "burrow", "belfry", "crypt"])
+    assert.equal(accessible(base, id), false);
+  assert.equal(
+    accessible({ ...base, stats: { ...base.stats, swim: 5 } }, "cistern"),
+    true,
+  );
+  assert.equal(
+    accessible({ ...base, stats: { ...base.stats, flight: 5 } }, "rookery"),
+    true,
+  );
+  assert.equal(
+    accessible({ ...base, stats: { ...base.stats, smallness: 6 } }, "burrow"),
+    true,
+  );
+  assert.equal(
+    accessible({ ...base, stats: { ...base.stats, smallness: 3 } }, "belfry"),
+    true,
+  );
+  for (const species of ["cat", "owl", "ghost"])
+    assert.equal(accessible({ ...base, species }, "crypt"), true);
 });

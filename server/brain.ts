@@ -254,6 +254,11 @@ export function createBrain(
         };
       } catch {
         const aliases: Record<string, RegExp> = {
+          cistern: /cistern|flood|reservoir/iu,
+          rookery: /rookery|nest|cloud/iu,
+          burrow: /burrow|tunnel|gap/iu,
+          belfry: /belfry|bell|rope/iu,
+          crypt: /crypt|dark|night|tomb/iu,
           tower: /tower|turret|fly|flight|🏰|🪽/iu,
           attic: /attic|tiny|small|🐭/iu,
           moat: /moat|water|swim|🌊|🐟/iu,

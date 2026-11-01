@@ -12,6 +12,11 @@ type Props = {
   allowed?: string[];
 };
 const POSITIONS: Record<string, [number, number, number]> = {
+  cistern: [-10, 0, 14],
+  rookery: [-10, 7, -7],
+  burrow: [10, 0, 7],
+  belfry: [10, 4, -8],
+  crypt: [-9, 0.8, -8],
   garden: [-9, 0, 8],
   tower: [-4.5, 10.4, -3],
   archives: [3.5, 4.5, 0.5],
@@ -25,6 +30,7 @@ const POSITIONS: Record<string, [number, number, number]> = {
   nursery: [5, 0, 13],
 };
 const INTERIORS: Record<string, [number, number, number]> = {
+  crypt: [-9, 0.9, -7],
   tavern: [-8.4, 0.9, -3],
   tower: [-4, 0.9, -3],
   archives: [1, 0.9, -3],
@@ -500,15 +506,73 @@ export default function CastleWorld(props: Props) {
         -9 + i * 2.7,
       ]);
     box(-14, 0.12, 4, 4, 0.2, 1.4, "#8e886e");
-    // Low service buildings for vet and nursery, separate from the main façade.
-    for (const [x, z] of [
-      [10, 12],
-      [5, 13],
-    ]) {
-      box(x, 0.8, z, 2.7, 1.7, 2, stone);
-      roof(x, 1.65, z, 3, 2.3, 1.1);
-      windowAt(x, 0.85, z + 1.02, 0.4, 0.7);
+    // Service roofs lift away on arrival, leaving an actual treatment table and bed.
+    const serviceRoofs = new Map<string, THREE.Group>();
+    for (const [id, x, z] of [
+      ["vet", 10, 12],
+      ["nursery", 5, 13],
+    ] as const) {
+      box(x, 0.12, z, 3.4, 0.25, 2.8, "#7c8273");
+      box(x, 0.65, z - 1.3, 3.4, 1.2, 0.15, stone);
+      box(x - 1.6, 0.65, z, 0.15, 1.2, 2.8, stone);
+      const shell = new THREE.Group();
+      scene.add(shell);
+      serviceRoofs.set(id, shell);
+      activeParent = shell;
+      roof(x, 1.65, z, 3.5, 3, 1.1);
+      activeParent = scene;
     }
+    box(10, 0.7, 12, 2.2, 0.35, 1.3, "#abc5ba");
+    for (const x of [9.2, 10.8]) box(x, 0.35, 12, 0.12, 0.65, 0.9, "#637e73");
+    box(11.2, 1.1, 11.3, 0.12, 1.6, 0.12, "#99b8af");
+    box(11.2, 1.8, 11.3, 0.4, 0.5, 0.18, "#83ddc1");
+    box(5, 0.45, 13, 2.4, 0.5, 1.9, "#53493f");
+    box(5, 0.74, 13, 2.3, 0.18, 1.8, "#eee4ce");
+    box(5, 0.9, 12.4, 1.7, 0.2, 0.4, "#f8efdf");
+    const quiltGeo = new THREE.PlaneGeometry(2.4, 1.55, 20, 16);
+    quiltGeo.rotateX(-Math.PI / 2);
+    const quilt = mesh(quiltGeo, "#8c5664", [5, 0.92, 13.25]);
+    quilt.material.side = THREE.DoubleSide;
+    const quiltBase = Float32Array.from(quiltGeo.attributes.position.array);
+    const hearts = Array.from({ length: 5 }, (_, i) =>
+      label("♥", 5, 2, 13, 0.5 + i * 0.07),
+    );
+    const healCross = new THREE.Group();
+    scene.add(healCross);
+    box(0, 0, 0, 0.18, 0.65, 0.12, "#86e2bc", healCross);
+    box(0, 0, 0, 0.6, 0.18, 0.12, "#86e2bc", healCross);
+    // Distinct silhouettes make the specialist hiding places readable from the lawn.
+    const cistern = mesh(
+      new THREE.CylinderGeometry(1.25, 1.25, 0.4, 24),
+      "#426d71",
+      [-10, 0.12, 14],
+    );
+    mesh(
+      new THREE.TorusGeometry(1.3, 0.16, 6, 24),
+      stone,
+      [-10, 0.3, 14],
+    ).rotation.x = Math.PI / 2;
+    box(-10, 3.2, -7, 0.5, 6.4, 0.5, stone);
+    mesh(new THREE.ConeGeometry(1.6, 0.6, 8), "#736349", [-10, 6.7, -7]);
+    box(10, 2, -8, 0.35, 4, 0.35, stone);
+    mesh(
+      new THREE.CylinderGeometry(0.65, 0.9, 0.8, 12),
+      "#b49b61",
+      [10, 4, -8],
+    );
+    box(10, 2.2, -8, 0.05, 3.5, 0.05, "#b7aa8a");
+    mesh(
+      new THREE.SphereGeometry(0.9, 12, 8),
+      "#30452e",
+      [10, 0.1, 7],
+    ).scale.set(1, 0.65, 1);
+    mesh(new THREE.CircleGeometry(0.35, 16), "#111d1a", [10, 0.25, 7.8]);
+    box(-9, 0.65, -8, 2, 1.2, 1.8, "#41443f");
+    box(-9, 0.55, -7.08, 0.6, 0.9, 0.05, "#111916");
+    label("TEMPERATURE 2.0", -8.4, 2, -3, 2.4);
+    label("KV CACHE", 1, 1.8, -3, 1.5);
+    label("CHECKPOINT CLINIC", 10, 2.7, 12, 2.8);
+    label("FORK / MERGE", 5, 2.7, 13, 2.5);
     // Cypress-lined grounds; instancing keeps the woodland inexpensive on phones.
     const treePositions: Array<[number, number, number]> = [];
     for (let i = 0; i < 80; i++) {
@@ -573,8 +637,7 @@ export default function CastleWorld(props: Props) {
       scene.add(light);
     }
     label("BASE CAMP", -3, 0.7, 12, 2.5);
-    label("VET +50", 10, 2.7, 12, 2.3);
-    label("NURSERY", 5, 2.7, 13, 2.5);
+
     const targets: THREE.Object3D[] = [];
     const halos = new Map<string, THREE.Mesh>();
     const markers = new Map<
@@ -598,11 +661,11 @@ export default function CastleWorld(props: Props) {
       halo.rotation.x = Math.PI / 2;
       halos.set(l.id, halo);
       const tag = label(
-        `${i + 1}  ${["GARDEN", "TOWER", "HALL", "ATTIC", "VAULT", "MOAT", "TAVERN", "COURTYARD"][i]}`,
+        `${i + 1}  ${({ garden: "GARDEN", tower: "TOWER", archives: "HALL", attic: "ATTIC", vault: "VAULT", moat: "MOAT", tavern: "TAVERN", courtyard: "COURTYARD", cistern: "CISTERN", rookery: "ROOKERY", burrow: "BURROW", belfry: "BELFRY", crypt: "CRYPT" } as Record<string, string>)[l.id]}`,
         x,
         y + 1.25,
         z,
-        4.2,
+        2.7,
       );
       markers.set(l.id, { marker, label: tag });
       tag.userData.location = l.id;
@@ -719,6 +782,34 @@ export default function CastleWorld(props: Props) {
             if (p.species === "robot")
               box(0, 0.5, 0, 0.08, 0.3, 0.08, PALETTE.dark, group);
           }
+          const effect = new THREE.Group();
+          effect.name = "effect";
+          group.add(effect);
+          const bottle = new THREE.Group();
+          bottle.name = "bottle";
+          effect.add(bottle);
+          mesh(
+            new THREE.CylinderGeometry(0.13, 0.16, 0.5, 8),
+            "#70915a",
+            [0.55, 0.55, 0],
+            bottle,
+          );
+          mesh(
+            new THREE.CylinderGeometry(0.06, 0.06, 0.22, 8),
+            "#c9ab70",
+            [0.55, 0.9, 0],
+            bottle,
+          );
+          const resetButton = new THREE.Group();
+          resetButton.name = "reset";
+          effect.add(resetButton);
+          box(0.6, 0.35, 0, 0.65, 0.16, 0.65, "#555f59", resetButton);
+          mesh(
+            new THREE.CylinderGeometry(0.23, 0.23, 0.17, 16),
+            "#e4755b",
+            [0.6, 0.5, 0],
+            resetButton,
+          );
           group.position.set(-3, 0.8, 11);
         }
         const base =
@@ -734,6 +825,7 @@ export default function CastleWorld(props: Props) {
           base[2] + Math.sin(angle) * 0.8,
         );
         item.object.userData.offset = i;
+        item.object.userData.pet = p;
       });
     }
     const ray = new THREE.Raycaster(),
@@ -807,8 +899,77 @@ export default function CastleWorld(props: Props) {
       }
       updatePets(open);
       const t = time / 1000;
+      const now = Date.now();
+      const breeding = latest.current.pets.some(
+        (p) =>
+          p.effect?.kind === "breed" &&
+          now - p.effect.at < 16000 &&
+          p.location === "nursery",
+      );
+      const treating = latest.current.pets.some(
+        (p) =>
+          p.effect?.kind === "vet" &&
+          now - p.effect.at < 16000 &&
+          p.location === "vet",
+      );
+      for (const [id, roofGroup] of serviceRoofs) {
+        const occupied = latest.current.pets.some((p) => p.location === id);
+        roofGroup.visible = !occupied;
+      }
+      hearts.forEach((h, i) => {
+        h.visible = breeding;
+        h.position.set(
+          5 + Math.sin(i * 2) * 0.8,
+          1.5 + (media.matches ? i * 0.35 : (t * 0.55 + i * 0.4) % 2),
+          13 + Math.cos(i) * 0.4,
+        );
+        h.material.rotation = media.matches ? 0 : Math.sin(t + i) * 0.15;
+      });
+      healCross.visible = treating;
+      healCross.position.set(
+        10,
+        2 + (media.matches ? 0 : Math.sin(t * 2) * 0.3),
+        12,
+      );
+      healCross.lookAt(camera.position);
+      const cloth = quiltGeo.attributes.position;
+      for (let i = 0; i < cloth.count; i++)
+        cloth.setY(
+          i,
+          quiltBase[i * 3 + 1] +
+            (breeding && !media.matches
+              ? Math.sin(cloth.getX(i) * 3 + t * 3) *
+                Math.cos(cloth.getZ(i) * 3 + t) *
+                0.12
+              : 0),
+        );
+      cloth.needsUpdate = true;
+      quiltGeo.computeVertexNormals();
+      renderer.domElement.dataset.activity = breeding
+        ? "breeding"
+        : treating
+          ? "vet"
+          : "seeking";
       for (const p of petObjects.values()) {
-        p.object.position.lerp(p.target, media.matches ? 1 : 0.075);
+        p.object.position.lerp(p.target, media.matches ? 1 : 0.028);
+        const pet = p.object.userData.pet as Pet;
+        const age = now - (pet.effect?.at || 0);
+        p.object.visible = !(
+          breeding &&
+          pet.location === "nursery" &&
+          (pet.baby || age > 2500)
+        );
+        p.object.rotation.z =
+          pet.tipsy && !media.matches
+            ? Math.sin(t * 3 + p.object.userData.offset) * 0.23
+            : 0;
+        if (pet.tipsy && !media.matches)
+          p.object.position.x += Math.sin(t * 4) * 0.015;
+        const effect = p.object.getObjectByName("effect")!;
+        effect.getObjectByName("bottle")!.visible =
+          pet.effect?.kind === "bottle" && age < 16000;
+        effect.getObjectByName("reset")!.visible =
+          pet.effect?.kind === "reset" && age < 16000;
         if (!media.matches)
           p.object.position.y =
             p.target.y + Math.sin(t * 3 + p.object.userData.offset) * 0.07;

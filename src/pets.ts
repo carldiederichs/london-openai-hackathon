@@ -10,6 +10,8 @@ export type Pet = {
   acted: boolean;
   image?: string;
   baby?: boolean;
+  tipsy?: boolean;
+  effect?: { kind: "vet" | "breed" | "bottle" | "reset"; at: number };
 };
 export type Location = {
   id: string;
@@ -18,6 +20,37 @@ export type Location = {
   region: "north" | "south";
 };
 export const LOCATIONS: Location[] = [
+  {
+    id: "cistern",
+    name: "Streaming Cistern",
+    subtitle: "Dive beneath the overflow pipes. Swim 5+.",
+    region: "south",
+  },
+  {
+    id: "rookery",
+    name: "Cloud Rookery",
+    subtitle: "Fly to the open-air nest above the inference tower.",
+    region: "north",
+  },
+  {
+    id: "burrow",
+    name: "Token Burrow",
+    subtitle: "Squeeze through the tiny context window. Smallness 6+.",
+    region: "south",
+  },
+  {
+    id: "belfry",
+    name: "Long-context Belfry",
+    subtitle: "Reach the high bell rope. Tall pets have smallness 3 or less.",
+    region: "north",
+  },
+  {
+    id: "crypt",
+    name: "Dark-mode Crypt",
+    subtitle:
+      "No light reaches the cold storage. Cats, owls and ghosts can see here.",
+    region: "north",
+  },
   {
     id: "garden",
     name: "Prompt Garden",

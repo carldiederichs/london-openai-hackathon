@@ -281,6 +281,7 @@ function PlayerControls({
                 ? "Bred card"
                 : "Offline card"}{" "}
             · {locationName(pet.location)}
+            {pet.tipsy ? " · Tipsy (−2 move priority)" : ""}
           </small>
         </div>
       </div>
@@ -520,7 +521,7 @@ export default function LiveApp() {
               {room?.ruledOut.includes(l.id)
                 ? "Ruled out"
                 : g
-                  ? `${STAT_LABELS[g.stat]} ${g.min}+`
+                  ? g.label || `${STAT_LABELS[g.stat]} ${g.min}+`
                   : "Open"}
             </small>
           </button>
@@ -911,7 +912,7 @@ export default function LiveApp() {
             </p>
             <p>
               Seek costs 10 usage. Traps cost another 25. The vet restores up to
-              50; Tivo restores 100. Breeding needs matching requests and 20
+              50; Tibo restores 100. Breeding needs matching requests and 20
               usage from each parent. The baby is ready next round.
             </p>
             <p>

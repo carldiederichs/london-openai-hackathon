@@ -16,7 +16,21 @@ export const STAT_LABELS: Record<Stat, string> = {
   climb: "Climb",
   swim: "Swim",
 };
-export const GATES: Record<string, { stat: Stat; min: number } | undefined> = {
+export const GATES: Record<
+  string,
+  | { stat: Stat; min: number; max?: number; night?: boolean; label?: string }
+  | undefined
+> = {
+  cistern: { stat: "swim", min: 5 },
+  rookery: { stat: "flight", min: 5 },
+  burrow: { stat: "smallness", min: 6 },
+  belfry: { stat: "smallness", min: 1, max: 3, label: "Tall · smallness ≤3" },
+  crypt: {
+    stat: "speed",
+    min: 1,
+    night: true,
+    label: "Night vision · cat, owl, ghost",
+  },
   tower: { stat: "flight", min: 5 },
   attic: { stat: "smallness", min: 5 },
   archives: { stat: "climb", min: 5 },
@@ -140,11 +154,18 @@ export type Session = {
 export type Reply<T = undefined> =
   { ok: true; data: T } | { ok: false; error: string };
 
-export function accessible(pet: { stats: Stats }, locationId: string): boolean {
+export function accessible(
+  pet: { stats: Stats; species?: string },
+  locationId: string,
+): boolean {
   const gate = GATES[locationId];
   return (
     LIVE_LOCATIONS.some((l) => l.id === locationId) &&
-    (!gate || pet.stats[gate.stat] >= gate.min)
+    (!gate ||
+      (pet.stats[gate.stat] >= gate.min &&
+        (!gate.max || pet.stats[gate.stat] <= gate.max) &&
+        (!gate.night ||
+          ["cat", "owl", "ghost"].includes(pet.species ?? "ghost"))))
   );
 }
 

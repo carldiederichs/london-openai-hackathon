@@ -90,3 +90,16 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - Header/hero/card-dashboard layouts were superseded by edge-only glass overlays.
 - Identity voting, a human hider, hosting deployment, teammate invitations and a
   persistent account/database system were not selected.
+
+## Visible mechanics and pet habitats
+
+- [x] Animate movement, nursery duvet/hearts, and a visible vet treatment.
+- [x] Bottle discoveries produce a tipsy state; vet and Tibo reset cure it. Show discovered props without leaking hidden locations.
+- [x] Add water, air, narrow, tall and dark hiding places with enforced requirements.
+- [ ] Render and exercise the changes, test rules, update documentation and push main.
+
+## Mansion detail and entertainment
+
+- [ ] **In progress**: Generate original antique pet photographs and add an inspectable ancestral gallery in the library.
+- [ ] Add room-specific AI lore and discoveries, richer interior props, and quieter world labels.
+- [ ] Verify portraits, final visuals, rules and build; push directly to main.
