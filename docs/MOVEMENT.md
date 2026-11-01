@@ -4,9 +4,11 @@ Integrates Max's draft [PR #2](https://github.com/carldiederichs/london-openai-h
 
 ## Try it
 
-Open `/practice`. **Send the pack** sends ten guardians to different legal habitats. Select a guardian and click a light ring, or search **Choose a destination**. **Follow pet** follows the selected guardian; **Reset view** returns to the estate overview. **Pause** freezes travel and gait. **Loop tour** waits for everyone to arrive before sending the next group. **Todd, run!** moves the visible rehearsal hider. Practice stays in this tab and makes no model calls.
+Open `/practice` and press **Start · 1 minute**. The pack automatically travels to legal habitats while the top-centre clock counts down. Select a pet and click a ring or search **Move to…** to direct it. Moves cost 10 usage; the vet restores 50. Pets with positive usage at zero share the win. This rehearsal makes no model calls and omits the live game's bottles and reciprocal breeding.
 
-Upload an ordinary image or a Codex atlas (1536 × 1872 or 1536 × 2288). Practice retains the guardian's existing abilities. Artwork changes are disabled during that guardian's journey. Back to base camp restores the practice roster and starts return journeys.
+The **··· camera menu** contains Follow pet, Reset view, zoom and Simple view. **More** in practice contains image upload, auto-move, Move Todd, movement pause and reset. Pausing movement does not pause the clock. The permanent travel roster and instructions were removed.
+
+Upload an ordinary image or a Codex atlas (1536 × 1872 or 1536 × 2288). Practice retains the guardian's existing abilities. Artwork changes are disabled during that guardian's journey. Reset practice restores the roster and returns to the unstarted 1:00 clock.
 
 ## How movement fits the world
 

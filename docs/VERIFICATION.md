@@ -98,3 +98,21 @@ This supersedes the earlier multi-floor layout and its floor controls.
 
 - Front gallery slabs and room floors both ended at height 0.98, causing depth conflicts while orbiting. Gallery surfaces now end at 0.94, below the room finishes. Side passages end at 0.92 and cross-galleries at 0.94; each passage is created once instead of three times.
 - Inspected the open cutaway at close zoom and after orbiting: room finishes stay visible without the competing gallery surface. TypeScript and production build pass. No gameplay or route coordinates changed.
+
+### Feral: survival clock, shared breeding and selective companion integration
+
+- Server/shared-rule tests: 33 passing. They cover a 60-second authoritative deadline, reconnect, expiry without host input, late model responses, no-survivor result, shared survivors and fresh restarts.
+- Breeding now reserves exactly two places, accounts for travel before starting an eight-second duvet effect, consumes two parents and creates one balanced shared pet. Tests cover third-pet rejection, arrival timing, low usage, overlapping ownership, expiry, one action shared by both owners and restoration of originals on restart.
+- Browser practice: two pets walk to the room, duvet billows with rising pink hearts, parents disappear and a new named pet emerges. A third pet cannot enter. Repeated merges and selection fallback were exercised.
+- Selectively ported Max's `9fb5bc8` companion assets, picker and original sprite cadence. Preserved the newer castle, 3D animal bodies, single-floor movement graph and overlays. Browser selected/rendered Dewey in practice and joined a real local room with Dewey's atlas; its live mating-room action resolved.
+- Tibo's enlarged illuminated frame and reset pedestal were inspected while orbiting and while pets moved. Fixed coplanar photograph/frame surfaces, including a wider separation for annex portraits.
+- Phone seeker at 390px: document width 390px, clock and essential controls visible. TypeScript and production build pass; Three.js lazy bundle size advisory remains. Real API, microphone, physical phone and CI permission checks remain external.
+
+- Live browser reached 0:00 and awarded Dewey; practice reached 0:00 and listed ten surviving pets. Play again restored 1:00 and original usage in practice, and preserved the live player in a fresh lobby.
+
+
+## Latest-main integration and live crowd check — 1 November 2026
+
+Merged `751aeae` into `feat/shared-castle-mobile-controls`, retaining the shared-world root/phone routes, five sample pets and 300-player admission while adopting the latest hunt timer, mating rules and castle rendering. Shutdown now clears both the hunt expiry timer and shared-world ticker. The full-room admission test uses the current hunt rules; the upstream mating tests cover replacement of both parents with their shared pet.
+
+A new integration scenario joins 300 guests in bounded HTTP bursts, holds 300 real WebSocket phone connections open simultaneously, checks that each phone receives only its own pet, and verifies that the shared screen receives movement and stopping for every pet. One isolated localhost run connected all controllers in 146 ms and observed all movement at the screen in 64 ms. These are local observations, not venue, physical-phone, 300-pet browser rendering or Cloudflare performance guarantees. A burst of 300 simultaneous HTTP connection attempts exceeded the local socket backlog, so admission is batched; all 300 WebSockets are live together during movement.

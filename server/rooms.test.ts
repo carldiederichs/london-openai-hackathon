@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { io as connect, type Socket } from "socket.io-client";
 import { once } from "node:events";
 import { createBrain, fallbackCard, type Brain } from "./brain.ts";
+import { MATING_DURATION_MS } from "../src/live/mating.ts";
+import { ownsPet } from "../src/live/shared.ts";
 import { Rooms, toddStats } from "./rooms.ts";
 import { createGameServer } from "./index.ts";
 import {
@@ -165,7 +167,8 @@ test("capture, duplicate resolution protection, restart and stale generation", a
   const resolving = rooms.resolve(host, 1, 1);
   await assert.rejects(rooms.resolve(host, 1, 1), /already/);
   await resolving;
-  assert.equal(room.outcome, "caught");
+  assert.equal(room.outcome, null);
+  assert.equal(room.phase, "results");
   assert.equal(room.pets[0].usage, 90);
   assert.equal(rooms.public(room.code).reveal?.location, "garden");
   rooms.restart(host);
@@ -231,63 +234,120 @@ test("traps are consumed once, reset caps usage, vet works at zero, illegal AI m
   assert.equal(room.pets[0].effect?.kind, "vet");
   assert.equal(room.pets[1].usage, before);
 });
-test("breeding needs reciprocal consent and only grants a baby next round", async () => {
-  const { rooms, host, players, room } = await setup();
-  room.pets.forEach((pet) => {
-    pet.spriteRows = 9;
-    pet.image = "/parent-atlas.png";
-  });
-  await rooms.start(host);
-  players.forEach((p, i) =>
-    rooms.submit(
-      p,
-      { type: "breed", petId: room.pets[i].id, partnerId: room.pets[1 - i].id },
-      1,
-      1,
+test("two reserved places, arrival then duvet, shared merged pet and original-pet restart", async () => {
+  let now = 1000;
+  const rooms = new Rooms(
+      brain(),
+      () => {},
+      () => now,
+    ),
+    host = rooms.create();
+  const players = await Promise.all(
+    ["A", "B", "C"].map((name) =>
+      rooms.join(host.roomCode, { name, description: "cat" }),
     ),
   );
+  const room = rooms.get(host.roomCode),
+    originals = room.pets.map((p) => p.id);
+  await rooms.start(host);
+  for (let i = 0; i < 2; i++)
+    rooms.submit(players[i], { type: "breed", petId: originals[i] }, 1, 1);
+  assert.throws(
+    () =>
+      rooms.submit(players[2], { type: "breed", petId: originals[2] }, 1, 1),
+    /only two/,
+  );
   await rooms.resolve(host, 1, 1);
-  assert.equal(room.pets.length, 3);
-  assert.equal(room.pets[2].readyRound, 2);
-  assert.equal(room.pets[0].effect?.kind, "breed");
-  assert.equal(room.pets[1].effect?.kind, "breed");
-  assert.equal(room.pets[2].effect, undefined);
-  assert.equal(room.pets[2].image, undefined);
-  assert.equal(room.pets[2].spriteRows, undefined);
-  assert.equal(room.pets[0].usage, 80);
-  assert.equal(room.pets[1].usage, 80);
+  assert.equal(room.pets.filter((p) => p.location === "nursery").length, 2);
+  assert.equal(room.pets[0].effect, undefined);
+  now = Math.max(...room.pets.slice(0, 2).map((p) => p.mating!.arrivesAt)) + 1;
+  rooms.tick();
+  assert.ok(room.pets.slice(0, 2).every((p) => p.effect?.kind === "breed"));
   await rooms.next(host);
-  const baby = room.pets[2],
-    owner = players.find((p) => p.playerId === baby.ownerId)!;
-  rooms.submit(owner, { type: "seek", petId: baby.id, prompt: "🌱" }, 2, 1);
+  assert.throws(
+    () => rooms.submit(players[0], { type: "vet", petId: originals[0] }, 2, 1),
+    /duvet/,
+  );
+  now += MATING_DURATION_MS - 1;
+  rooms.tick();
+  assert.equal(room.pets.length, 3);
+  now++;
+  rooms.tick();
+  assert.equal(room.pets.length, 2);
+  const child = room.pets.find((p) => p.baby)!;
+  assert.ok(child && !originals.includes(child.id));
+  assert.ok(
+    ownsPet(child, players[0].playerId) && ownsPet(child, players[1].playerId),
+  );
+  assert.equal(
+    Object.values(child.stats).reduce((a, b) => a + b),
+    20,
+  );
+  assert.equal(child.usage, 100);
+  assert.equal(child.image, undefined);
+  assert.equal(child.spriteRows, undefined);
+  rooms.submit(
+    players[1],
+    { type: "seek", petId: child.id, prompt: "🌱" },
+    2,
+    1,
+  );
+  assert.equal(Object.keys(room.submissions).length, 2);
   assert.throws(
     () =>
       rooms.submit(
-        owner,
-        {
-          type: "vet",
-          petId: room.pets.find((p) => p.ownerId === owner.playerId && !p.baby)!
-            .id,
-        },
+        players[0],
+        { type: "seek", petId: child.id, prompt: "🌱" },
         2,
         1,
       ),
     /locked/,
   );
+  await rooms.resolve(host, 2, 1);
+  assert.equal(child.usage, 100); // invalid test-brain location: no spend, once only
   rooms.restart(host);
-  assert.equal(room.pets.length, 2);
-  await rooms.start(host);
-  rooms.submit(
-    players[0],
-    { type: "breed", petId: room.pets[0].id, partnerId: room.pets[1].id },
-    1,
-    2,
+  assert.deepEqual(
+    room.pets.map((p) => p.id),
+    originals,
   );
-  await rooms.resolve(host, 1, 2);
-  assert.equal(room.pets.length, 2);
-  assert.equal(room.pets[0].usage, 100);
+  assert.ok(room.pets.every((p) => p.location === "camp" && !p.mating));
+  assert.deepEqual(
+    room.players.map((p) => p.petId),
+    originals,
+  );
 });
-test("one cheering advantage, tie, expiry, and four-round escape", async () => {
+test("one pet can wait alone then leave; expiry cannot finish a pending merge", async () => {
+  let now = 1000;
+  const rooms = new Rooms(
+      brain(),
+      () => {},
+      () => now,
+    ),
+    host = rooms.create();
+  const players = await Promise.all(
+    ["A", "B"].map((name) =>
+      rooms.join(host.roomCode, { name, description: "cat" }),
+    ),
+  );
+  const room = rooms.get(host.roomCode);
+  await rooms.start(host);
+  rooms.submit(players[0], { type: "breed", petId: room.pets[0].id }, 1, 1);
+  await rooms.resolve(host, 1, 1);
+  now += 5000;
+  rooms.tick();
+  assert.equal(room.pets[0].effect, undefined);
+  await rooms.next(host);
+  rooms.submit(players[1], { type: "breed", petId: room.pets[1].id }, 2, 1);
+  await rooms.resolve(host, 2, 1);
+  now = room.endsAt!;
+  rooms.tick();
+  assert.equal(room.phase, "over");
+  assert.equal(room.pets.length, 2);
+  now += 100000;
+  rooms.tick();
+  assert.equal(room.pets.length, 2);
+});
+test("one cheering advantage, tie, expiry, and continued play after four rounds", async () => {
   const { rooms, host, room } = await setup();
   await rooms.start(host);
   rooms.cheer(host, {
@@ -337,8 +397,10 @@ test("one cheering advantage, tie, expiry, and four-round escape", async () => {
   await rooms.resolve(host, 3, 1);
   await rooms.next(host);
   await rooms.resolve(host, 4, 1);
-  assert.equal(room.outcome, "escaped");
-  assert.equal(room.phase, "over");
+  assert.equal(room.outcome, null);
+  assert.equal(room.phase, "results");
+  await rooms.next(host);
+  assert.equal(room.round, 5);
 });
 test("failed asynchronous work restores the round and retained submissions", async () => {
   const { rooms, model, host, players, room } = await setup();
@@ -459,7 +521,7 @@ test("real HTTP and Socket.IO clients authenticate, sync, reconnect and isolate 
     (await command(hs, "host:resolve", { round: 1, generation: 1 })).ok,
     true,
   );
-  assert.equal(server.rooms.public(host.roomCode).outcome, "caught");
+  assert.equal(server.rooms.public(host.roomCode).outcome, null);
 });
 
 test("specialist habitats enforce swimming, flying, size, height and night vision", () => {
@@ -629,23 +691,180 @@ test("300 anonymous HTTP joins from one IP succeed and player 301 is rejected", 
   assert.equal(overflow.ok, false);
   assert.match(overflow.error, new RegExp(String(MAX_PLAYERS)));
   await server.rooms.start(host);
-  const parents = room.pets.slice(0, 2);
-  for (let i = 0; i < 2; i++) {
-    const player = room.players.find(
-      (member) => member.id === parents[i].ownerId,
-    )!;
-    const session = server.rooms.authenticate(host.roomCode, player.token);
-    server.rooms.submit(
-      session,
-      {
-        type: "breed",
-        petId: parents[i].id,
-        partnerId: parents[1 - i].id,
-      },
+  assert.equal(room.phase, "seeking");
+});
+
+test("one minute ends automatically, freezes shared survivors, and restarts with a fresh deadline", async () => {
+  let now = 10_000,
+    broadcasts = 0;
+  const rooms = new Rooms(
+    brain(),
+    () => broadcasts++,
+    () => now,
+  );
+  const host = rooms.create();
+  const players = await Promise.all(
+    ["One", "Two", "Three"].map((name) =>
+      rooms.join(host.roomCode, { name, description: "cat" }),
+    ),
+  );
+  const room = rooms.get(host.roomCode);
+  assert.equal(rooms.public(host.roomCode).endsAt, null);
+  await rooms.start(host);
+  assert.equal(room.endsAt, 70_000);
+  room.pets[0].usage = 1;
+  room.pets[1].usage = 0;
+  room.pets[2].usage = 50;
+  const expected = [room.pets[0].id, room.pets[2].id];
+  now = 69_999;
+  rooms.tick();
+  assert.equal(room.phase, "seeking");
+  assert.equal(
+    rooms.public(room.code).endsAt,
+    70_000,
+    "reconnect snapshot retains deadline",
+  );
+  now = 70_000;
+  const before = broadcasts;
+  rooms.tick();
+  assert.equal(
+    broadcasts,
+    before + 1,
+    "expiry broadcasts without a client command",
+  );
+  assert.equal(room.phase, "over");
+  assert.deepEqual(room.winnerPetIds, expected);
+  rooms.tick();
+  assert.equal(broadcasts, before + 1, "finish only once");
+  assert.throws(
+    () =>
+      rooms.submit(players[0], { type: "vet", petId: room.pets[0].id }, 1, 1),
+    /closed/,
+  );
+  await assert.rejects(rooms.resolve(host, 1, 1), /closed/);
+  rooms.restart(host);
+  assert.equal(room.endsAt, null);
+  assert.deepEqual(room.winnerPetIds, []);
+  now = 90_000;
+  await rooms.start(host);
+  assert.equal(room.endsAt, 150_000);
+});
+
+test("expiry with no survivors has no winner and excludes babies not yet ready", async () => {
+  let now = 0;
+  const rooms = new Rooms(
+      brain(),
+      () => {},
+      () => now,
+    ),
+    host = rooms.create();
+  await rooms.join(host.roomCode, { name: "Parent", description: "owl" });
+  await rooms.start(host);
+  const room = rooms.get(host.roomCode);
+  room.pets[0].usage = 0;
+  room.pets.push({
+    ...room.pets[0],
+    id: "not-ready",
+    baby: true,
+    usage: 100,
+    readyRound: 2,
+  });
+  now = 60_000;
+  assert.equal(rooms.public(room.code).outcome, "survived");
+  assert.deepEqual(room.winnerPetIds, []);
+  assert.match(room.events[0].text, /No pets survived/);
+});
+
+test("late model resolutions cannot change an expired or restarted hunt", async () => {
+  for (const fails of [false, true]) {
+    let now = 0;
+    const model = brain(),
+      rooms = new Rooms(
+        model,
+        () => {},
+        () => now,
+      ),
+      host = rooms.create();
+    const player = await rooms.join(host.roomCode, {
+      name: "Late",
+      description: "cat",
+    });
+    await rooms.start(host);
+    const room = rooms.get(host.roomCode),
+      pet = room.pets[0];
+    let finish!: () => void;
+    model.move = () =>
+      new Promise((resolve, reject) => {
+        finish = () =>
+          fails
+            ? reject(new Error("late"))
+            : resolve({
+                valid: true,
+                locationId: "garden",
+                narration: "Late move",
+                mode: "fallback",
+              });
+      });
+    rooms.submit(
+      player,
+      { type: "seek", petId: pet.id, prompt: "garden" },
       1,
       1,
     );
+    const pending = rooms.resolve(host, 1, 1);
+    now = 60_000;
+    rooms.tick();
+    assert.equal(room.phase, "over");
+    assert.equal(pet.usage, 100, "unresolved move spends no usage at the bell");
+    rooms.restart(host);
+    finish();
+    await pending;
+    assert.equal(room.phase, "lobby");
+    assert.equal(room.endsAt, null);
+    assert.equal(room.pets[0].location, "camp");
+    assert.equal(room.pets[0].usage, 100);
   }
-  await server.rooms.resolve(host, 1, 1);
-  assert.equal(room.pets.length, MAX_PLAYERS + 1);
+});
+
+test("server ticker publishes the finish without host input", async () => {
+  const server = createGameServer(brain());
+  await new Promise<void>((resolve) =>
+    server.http.listen(0, "127.0.0.1", resolve),
+  );
+  const port = (server.http.address() as { port: number }).port;
+  const host = server.rooms.create();
+  await server.rooms.join(host.roomCode, {
+    name: "Survivor",
+    description: "cat",
+  });
+  const socket = connect(`http://127.0.0.1:${port}`, {
+    auth: { code: host.roomCode, token: host.token },
+    transports: ["websocket"],
+  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect", resolve);
+      socket.once("connect_error", reject);
+    });
+    await server.rooms.start(host);
+    const room = server.rooms.get(host.roomCode);
+    const finished = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("No deadline broadcast")),
+        1500,
+      );
+      socket.on("room:state", (state) => {
+        if (state.phase === "over") {
+          clearTimeout(timeout);
+          assert.equal(state.winnerPetIds.length, 1);
+          resolve();
+        }
+      });
+    });
+    room.endsAt = Date.now() + 20;
+    await finished;
+  } finally {
+    socket.disconnect();
+    await server.close();
+  }
 });

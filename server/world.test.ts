@@ -103,3 +103,132 @@ test("a phone arrow moves the same pet on a separate shared-screen socket", asyn
   );
   phone.emit("world:input", { mask: 0, sequence: 2 });
 });
+
+test(
+  "300 live phone sockets move and stop together on one castle screen",
+  { timeout: 20_000 },
+  async (t) => {
+    const server = createGameServer(createBrain());
+    const sockets: ReturnType<typeof io>[] = [];
+    t.after(async () => {
+      sockets.forEach((socket) => socket.disconnect());
+      await server.close();
+    });
+    server.http.listen(0, "127.0.0.1");
+    await once(server.http, "listening");
+    const { port } = server.http.address() as { port: number };
+    const base = `http://127.0.0.1:${port}`;
+    const sessions: { playerId: string; token: string }[] = [];
+    for (let batch = 0; batch < 300; batch += 20)
+      sessions.push(
+        ...(await Promise.all(
+          Array.from({ length: 20 }, async (_, offset) => {
+            const index = batch + offset;
+            const response = await fetch(`${base}/api/world/join`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sampleId: "codex",
+                name: `Phone ${index + 1}`,
+              }),
+            });
+            const reply = await response.json();
+            assert.equal(reply.ok, true);
+            return reply.data;
+          }),
+        )),
+      );
+    const initial = new Map<string, number>();
+    const connectedAt = performance.now();
+    const phones = sessions.map((session) => {
+      const socket = io(`${base}/world`, {
+        auth: session,
+        transports: ["websocket"],
+        autoConnect: false,
+        forceNew: true,
+      });
+      sockets.push(socket);
+      return socket;
+    });
+    for (let batch = 0; batch < phones.length; batch += 30)
+      await Promise.all(
+        phones.slice(batch, batch + 30).map(
+          (socket, index) =>
+            new Promise<void>((resolve, reject) => {
+              socket.once("connect_error", reject);
+              socket.once("world:state", (state) => {
+                try {
+                  assert.equal(state.pets.length, 1);
+                  assert.equal(
+                    state.pets[0].id,
+                    sessions[batch + index].playerId,
+                  );
+                  assert.equal(state.count, 300);
+                  initial.set(state.pets[0].id, state.pets[0].position.x);
+                  resolve();
+                } catch (error) {
+                  reject(error);
+                }
+              });
+              socket.connect();
+            }),
+        ),
+      );
+    const connectedMs = performance.now() - connectedAt;
+    const screen = io(`${base}/world`, {
+      auth: { role: "screen" },
+      transports: ["websocket"],
+      autoConnect: false,
+    });
+    sockets.push(screen);
+    const screenReady = new Promise<
+      import("../src/world/engine.ts").WorldState
+    >((resolve) => screen.once("world:state", resolve));
+    screen.connect();
+    const state = await screenReady;
+    assert.equal(state.pets.length, 300);
+    assert.equal(state.online, 300);
+    const wait = (
+      predicate: (
+        state: import("../src/world/engine.ts").WorldState,
+      ) => boolean,
+    ) =>
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          screen.off("world:state", listener);
+          reject(new Error("Crowd state timed out"));
+        }, 5000);
+        const listener = (
+          state: import("../src/world/engine.ts").WorldState,
+        ) => {
+          if (predicate(state)) {
+            clearTimeout(timer);
+            screen.off("world:state", listener);
+            resolve();
+          }
+        };
+        screen.on("world:state", listener);
+      });
+    const moved = wait(
+      (state) =>
+        state.pets.length === 300 &&
+        state.pets.every(
+          (pet) => pet.moving && pet.position.x > initial.get(pet.id)!,
+        ),
+    );
+    const movementAt = performance.now();
+    phones.forEach((socket) =>
+      socket.emit("world:input", { mask: 2, sequence: 1 }),
+    );
+    await moved;
+    const movementMs = performance.now() - movementAt;
+    const stopped = wait((state) => state.pets.every((pet) => !pet.moving));
+    phones.forEach((socket) =>
+      socket.emit("world:input", { mask: 0, sequence: 2 }),
+    );
+    await stopped;
+    t.diagnostic(
+      `Localhost: 300 real WebSocket controllers connected in ${Math.round(connectedMs)} ms; all movements reached the screen in ${Math.round(movementMs)} ms. This does not measure physical phones, rendering at 300 pets, or Cloudflare.`,
+    );
+  },
+);

@@ -1,7 +1,7 @@
-# Promptkeep task checklist
+# Feral task checklist
 
 Authoritative checklist. Latest instructions: full-screen Ardross-inspired 3D castle;
-transparent glass UI at the left and right only; remove titles/branding/dashboard
+transparent glass UI at the left and right, with a top-centre one-minute clock; remove titles/branding/dashboard
 clutter and delete the 2D prototype. Push verified milestones directly to main.
 Do not interact with Notion. Microphone hardware testing is reserved for the user.
 
@@ -183,3 +183,39 @@ Multiple playable floors, cellars as a separate floor and floor cycling are supe
 - [x] Merge latest main `b61a636` while preserving the capacity work.
 - [x] Verify 30 tests, typecheck, production build, all five loaded portraits and movement of the same rendered pet from a phone input.
 - [ ] Deploy the Cloudflare Worker and public ChatGPT Site, then test venue phones and 300 live connections.
+
+## One-minute survival and minimal interface
+
+- [x] Authoritative 60-second deadline, survivors with usage above zero, shared winners, closed actions at expiry, restart and reconnect safety. Replace the four-round ending.
+- [x] Add the large top-centre clock to live and practice; freeze at zero and show winners.
+- [x] Remove permanent practice instructions, status panels and duplicate details; collapse camera/secondary controls while retaining room access, uploads, care and phone joining.
+- [x] Verified deadline races, live/practice 0:00 winners, fresh 1:00 restart with original pets, and 390px player controls. 33 tests and production build pass.
+
+## Current additions and reopened visual check
+
+- [x] Name the game Feral in page metadata, package and docs; preserve existing sessions.
+- [x] Reserve exactly two mating places, wait for both arrivals, merge into one shared pet; balanced stats, combined usage minus 40, shared orders, restart originals. Server/shared-rule tests pass.
+- [x] Browser verified floating duvet, large ascending hearts, third-pet rejection, and replacement of both parents with the shared pet.
+- [x] Selectively integrate Max's latest `9fb5bc8` functionality: original companion assets, live picker, optional practice picker and original sprite cadence. Preserve the current world, 3D guardians and all 42 routes.
+- [x] Browser verified Dewey selection/rendering in practice and live joining, balanced card and a live mating-room action.
+- [x] Enlarged/lit Tibo and raised the reset onto a visible plinth. Separated photo planes from frame faces; browser orbit and moving pets show complete, stable portraits.
+- [ ] Run final checks, reconcile docs, push directly to main, verify remote hash and save a local continuity checkpoint. Notion remains paused.
+
+## Real-time crowd game (latest request)
+
+This supersedes turn-by-turn prompts and the ten-player cap. Preserve the mansion display and existing care mechanics.
+
+- [ ] **In progress** — server-authoritative real-time movement with phone arrow/WASD controls, QR joining, persistent room sessions and up to 300 player connections.
+- [ ] Swipeable default Codex pet picker plus existing custom image/description option.
+- [ ] Hide the Dot before the game; never expose its location to active clients. Finding it instantly wins; otherwise determine survival result at the 60-second deadline.
+- [ ] Preserve two-place mating, shared pet ownership, vet/bottles/reset and connected castle routes in real-time play.
+- [ ] Batch updates and load-test 300 simultaneous WebSocket clients; report local measurements and distinguish venue/device capacity.
+- [ ] Browser-check host + multiple phone controllers, movement, joining/reconnect, hidden Dot and both endings. Push verified changes to main.
+- [x] Owen’s shared-world implementation is available in draft PR #3; this branch integrates the latest main while retaining the shared castle and mobile controls.
+
+
+## Shared-world branch integration
+
+- [x] Merge team main `751aeae` without changing the root shared-world or `/join` experience; retain latest hunt survival and mating rules at `/hunt`.
+- [x] Verify 300 simultaneously connected WebSocket controllers moving and stopping on one screen, with per-phone state isolation. Admission uses bounded bursts; venue phones and Cloudflare still need separate checks.
+- [x] Serve the merged original repository at localhost:4177, replacing the temporary preview copy.

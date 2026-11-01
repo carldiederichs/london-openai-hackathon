@@ -14,6 +14,6 @@ Deployment steps:
 2. Set `ALLOWED_ORIGINS` on the Worker to the final Site origin (comma separated if multiple origins are required).
 3. Set `VITE_WORLD_API_URL` to the Worker HTTPS URL before `npm run build`.
 4. Publish `dist` using Sites, with public access for signed-out guests. The QR code uses that Site origin.
-5. Test two actual phones on venue internet, then load-test 300 live connections. Admission tests are not a 300-device performance result.
+5. Test actual phones on venue internet and load-test the deployed Worker. The local Node path now tests 300 live WebSocket controllers moving and stopping together; this does not establish physical-device, rendering or deployed performance.
 
 This source has not yet been deployed to either host. The Node/Socket.IO path is verified locally; the Worker still needs a Cloudflare runtime check and deployment credentials. No ChatGPT, OpenAI API, or pet account key is exposed to guests.
