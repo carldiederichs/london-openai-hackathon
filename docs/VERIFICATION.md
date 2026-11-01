@@ -76,3 +76,5 @@ This supersedes the earlier multi-floor layout and its floor controls.
 - Browser: closed exterior, open furnished cutaway, ten visible simultaneous journeys, follow camera, pause preserving positions, sprite input disabled during travel, and a live host/seeker far-wing search. The host showed Pets travelling and disabled advancement. The seeker reached Banquet of Tokens with 90 usage.
 - The 390px seeker viewport had a 390px document width. No microphone hardware or actual model request was tested in this integration. Earlier external checks remain open.
 - Screenshots saved locally as castle-courtyard.png and castle-running.png in the task visualization folder; these are evidence, not repository assets.
+
+- The live host enabled Next round after arrival and advanced to round 2. Fixed the custom hip-roof UV attribute mismatch; a fresh browser reload reported no new renderer errors. Merge commit `497cc03` was pushed and matched the remote main ref.

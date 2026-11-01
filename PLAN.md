@@ -153,7 +153,7 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - [x] Verify pause, ten visible practice journeys, a live host/seeker far-wing move, travel-locked round advancement and a 390px seeker layout without horizontal overflow.
 - [x] Run server and movement regressions: 25 passing tests and successful TypeScript/production build. All destination pairs, court clearance and rear doors covered.
 - [x] Update setup, movement boundaries and verification notes. Actual model calls, physical-phone networking, microphone hardware and CI remain the external checks above.
-- [ ] Finish the merge, push directly to main and verify the remote commit.
-- [ ] Save a local continuity checkpoint with readback; leave the preview open. Notion remains paused.
+- [x] Merge commit `497cc03` pushed directly to main; remote commit identity verified.
+- [x] Saved a sanitized local continuity checkpoint with readback and retained the practice preview. Notion remains paused.
 
 Multiple playable floors, cellars as a separate floor and floor cycling are superseded by the latest single-floor request. Previous floor-specific checks above are historical evidence only.
