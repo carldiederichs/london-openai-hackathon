@@ -4,6 +4,23 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import type { Pet } from "../pets";
+import { ROOM_FLOORS, POSITIONS, INTERIORS, ANNEX_ROOMS } from "./world";
+import {
+  planJourney,
+  roomPoint,
+  sampleJourney,
+  spriteFrame,
+  type Journey,
+  type Point,
+} from "./movement";
+
+export type Travel = {
+  id: string;
+  name: string;
+  from: string;
+  to: string;
+  mode: Journey["mode"];
+};
 import { GATES, STAT_LABELS, LIVE_LOCATIONS } from "./shared";
 
 type Props = {
@@ -12,69 +29,9 @@ type Props = {
   todd?: string | null;
   onSelect: (id: string) => void;
   allowed?: string[];
-};
-const ROOM_FLOORS: Record<string, number> = {
-  ballroom: 1,
-  dormitory: 1,
-  observatory: 1,
-  chapel: 2,
-  serverloft: 2,
-  eyrie: 2,
-  coldstorage: -1,
-  floodedcellar: -1,
-  drain: -1,
-};
-const POSITIONS: Record<string, [number, number, number]> = {
-  ballroom: [-7, 4.4, -4],
-  dormitory: [0, 4.4, -4],
-  observatory: [7, 4.4, -4],
-  chapel: [-7, 7.9, -4],
-  serverloft: [0, 7.9, -4],
-  eyrie: [7, 7.9, -4],
-  coldstorage: [-7, 0.9, -4],
-  floodedcellar: [0, 0.9, -4],
-  drain: [7, 0.9, -4],
-  graveyard: [20, 0, 31],
-  ivory: [20, 10, 4],
-  lake: [-18, 0, 24],
-  boathouse: [-13, 0, 29],
-  maze: [14, 0, 24],
-  orchard: [16, 0, 13],
-  glasshouse: [-17, 0, 13],
-  pavilion: [0, 0, 31],
-  cistern: [-10, 0, 14],
-  rookery: [-10, 7, -7],
-  burrow: [10, 0, 7],
-  belfry: [10, 4, -8],
-  crypt: [21, 0, 33],
-  garden: [-9, 0, 8],
-  tower: [-4.5, 10.4, -3],
-  archives: [3.5, 4.5, 0.5],
-  attic: [8.5, 7.5, -5],
-  vault: [7, 0.9, 3],
-  moat: [-14, 0, 3],
-  tavern: [-8, 2, -0.5],
-  courtyard: [0, 0.8, 3.5],
-  camp: [-3, 0, 12],
-  vet: [10, 0, 12],
-  nursery: [5, 0, 13],
-};
-const INTERIORS: Record<string, [number, number, number]> = {
-  ballroom: [-7, 4.4, -4],
-  dormitory: [0, 4.4, -4],
-  observatory: [7, 4.4, -4],
-  chapel: [-7, 7.9, -4],
-  serverloft: [0, 7.9, -4],
-  eyrie: [7, 7.9, -4],
-  coldstorage: [-7, 0.9, -4],
-  floodedcellar: [0, 0.9, -4],
-  drain: [7, 0.9, -4],
-
-  tavern: [-8.4, 0.9, -3],
-  tower: [-4, 0.9, -3],
-  archives: [1, 0.9, -3],
-  attic: [6.5, 0.9, -6],
-  vault: [6.5, 0.9, -2.7],
+  selectedPet?: string;
+  paused?: boolean;
+  onTravelChange?: (travel: Travel[]) => void;
 };
 const PALETTE = {
   stone: "#9d9279",
@@ -95,24 +52,12 @@ export default function CastleWorld(props: Props) {
   const [failed, setFailed] = useState(false);
   const [simple, setSimple] = useState(false);
   const [inside, setInside] = useState(false);
-  const [floor, setFloor] = useState(0);
+  const [follow, setFollow] = useState(false);
+  const followRef = useRef(false);
+  followRef.current = follow;
   const floorRef = useRef(0);
-  floorRef.current = floor;
-  const previousLocations = useRef<Record<string, string>>({});
-  useEffect(() => {
-    for (const p of props.pets)
-      if (
-        previousLocations.current[p.id] !== p.location &&
-        p.location in ROOM_FLOORS
-      )
-        setFloor(ROOM_FLOORS[p.location]);
-    previousLocations.current = Object.fromEntries(
-      props.pets.map((p) => [p.id, p.location]),
-    );
-  }, [props.pets]);
   useEffect(() => {
     if (props.selected && props.selected in INTERIORS) {
-      setFloor(ROOM_FLOORS[props.selected] || 0);
       setInside(true);
     }
   }, [props.selected]);
@@ -123,7 +68,12 @@ export default function CastleWorld(props: Props) {
   const hoverGate = hoverPlace ? GATES[hoverPlace.id] : undefined;
   const insideRef = useRef(false);
   insideRef.current = inside;
-  const autoInside = props.pets.some((p) => p.location in INTERIORS);
+  const autoInside =
+    props.pets.some((p) => p.location in INTERIORS) ||
+    !!(props.todd && props.todd in INTERIORS);
+  useEffect(() => {
+    if (simple || failed) props.onTravelChange?.([]);
+  }, [simple, failed, props.onTravelChange]);
   useEffect(() => {
     if (simple || failed) return;
     const container = mount.current!;
@@ -152,12 +102,12 @@ export default function CastleWorld(props: Props) {
     renderer.domElement.setAttribute("role", "img");
     container.appendChild(renderer.domElement);
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#152421", 40, 85);
-    const camera = new THREE.OrthographicCamera(-19, 19, 15, -15, 0.1, 100);
-    camera.position.set(27, 32, 48);
-    camera.zoom = 1.1;
+    scene.fog = new THREE.Fog("#152421", 145, 260);
+    const camera = new THREE.OrthographicCamera(-19, 19, 15, -15, 0.1, 320);
+    camera.position.set(65, 88, 85);
+    camera.zoom = 0.65;
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 2.5, 9);
+    controls.target.set(0, 4, -10);
     controls.enablePan = true;
     controls.minPolarAngle = 0.35;
     controls.maxPolarAngle = 1.2;
@@ -166,10 +116,10 @@ export default function CastleWorld(props: Props) {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     reset.current = () => {
-      camera.position.set(27, 32, 48);
-      camera.zoom = 1.1;
+      camera.position.set(65, 88, 85);
+      camera.zoom = 0.65;
       camera.updateProjectionMatrix();
-      controls.target.set(0, 2.5, 9);
+      controls.target.set(0, 4, -10);
       controls.update();
     };
     zoom.current = (n) => {
@@ -249,7 +199,7 @@ export default function CastleWorld(props: Props) {
     // Original procedural model inspired by Ardross Castle's exterior, not a
     // survey or a floor plan: a long baronial façade, square tower, and terrace.
     mesh(
-      new THREE.PlaneGeometry(160, 160),
+      new THREE.PlaneGeometry(210, 210),
       "#30472e",
       [0, -0.15, 0],
     ).rotation.x = -Math.PI / 2;
@@ -319,91 +269,31 @@ export default function CastleWorld(props: Props) {
         z,
       ]);
     }
-    upperCastle.scale.y = 1.45;
+    upperCastle.scale.y = 1;
     activeParent = upperCastle;
-    // The west block and main hall share one continuous sandstone frontage.
-    box(-1, 3.4, -4.3, 20, 5.2, 6.5, stone);
-    roof(-1, 6, -4.3, 20.4, 6.9, 2.3);
-    box(7.2, 4, -6.2, 5.5, 6.4, 7.5, stone);
-    roof(7.2, 7.2, -6.2, 5.8, 7.9, 2.5);
-    // Tall, square entrance tower with a steep hipped cap and corner bartizans.
-    box(-4.5, 5.1, -2.9, 3.5, 8.6, 4.2, stone);
-    box(-4.5, 9.25, -2.9, 4, 0.4, 4.7, trim);
-    roof(-4.5, 9.5, -2.9, 3.5, 4.5, 2.4);
-    for (const x of [-6.25, -2.75])
-      for (const z of [-5, -0.8]) turret(x, z, 8.4, 1.8, 0.28);
-    turret(-10.8, -1.1, 0.8, 6.6, 0.55);
-    turret(-1.4, -1.1, 0.8, 6.8, 0.5);
-    turret(9.7, -2.2, 1, 6.4, 0.43);
-    // Main entrance arch, portico, and tall paired windows.
-    box(-4.5, 1.75, -0.7, 1.25, 2, 0.2, "#292922");
-    const arch = mesh(
-      new THREE.TorusGeometry(0.68, 0.18, 8, 24, Math.PI),
+    // The entrance belongs to the same architectural scale as the four wings.
+    box(-4, 6.4, -3.5, 12, 11, 6.5, stone);
+    roof(-4, 12, -3.5, 13, 7.5, 4);
+    for (const x of [-10, 2]) turret(x, -0.8, 8, 5.2, 0.75);
+    box(-4, 2.5, -0.15, 2.4, 3.3, 0.3, "#25312b");
+    mesh(
+      new THREE.TorusGeometry(1.2, 0.3, 8, 24, Math.PI),
       trim,
-      [-4.5, 2.65, -0.53],
+      [-4, 4.1, 0.08],
     );
-    arch.rotation.z = 0;
-    for (const x of [-5.4, -3.6]) box(x, 1.65, -0.35, 0.3, 1.8, 0.6, trim);
-    box(-4.5, 2.8, -0.1, 2.4, 0.23, 1.6, trim);
-    for (const y of [4.1, 6.2, 8]) windowAt(-4.5, y, -0.72, 0.68, 1.2);
-    for (const x of [-9.3, -7.7, -0.2, 1.3, 3, 5, 7.9])
-      for (const y of [2.15, 3.9, 5.4]) windowAt(x, y, -0.98);
-    // Projecting bay windows and crow-stepped gables along the east wing.
-    for (const x of [3.5, 8]) {
-      mesh(new THREE.CylinderGeometry(1.25, 1.25, 4.8, 5), stone, [
-        x,
-        3.2,
-        -0.7,
-      ]).rotation.y = Math.PI / 5;
-      windowAt(x, 2.1, 0.42, 0.9, 1.4);
-      windowAt(x, 4.15, 0.42, 0.9, 1.4);
-      mesh(new THREE.ConeGeometry(1.6, 1.6, 5), roofColor, [
-        x,
-        6.4,
-        -0.7,
-      ]).rotation.y = Math.PI / 5;
-      for (let i = 0; i < 4; i++)
-        for (const sign of [-1, 1])
-          box(
-            x + sign * (1.5 - i * 0.38),
-            5.5 + i * 0.45,
-            -0.1,
-            0.4,
-            0.5,
-            0.4,
-            trim,
-          );
-    }
-    // Dormers and clustered stone chimney pots break up the slate roofline.
-    for (const x of [-8, -0.1, 2.2, 5.8, 8.7]) {
-      box(x, 6.6, -2.4, 0.9, 1.3, 0.7, stone);
-      roof(x, 7.25, -2.4, 1.1, 1.1, 0.8);
-      windowAt(x, 6.55, -1.98, 0.4, 0.7);
-    }
-    for (const [x, z] of [
-      [-9, -5.5],
-      [-7, -6],
-      [-0.5, -6.3],
-      [2, -6.3],
-      [5, -8],
-      [9, -8],
-    ]) {
-      box(x, 8.2, z, 0.6, 2.1, 0.8, stone);
-      box(x, 9.3, z, 0.8, 0.2, 1, trim);
-      for (const dx of [-0.2, 0.2])
-        mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.4, 6), "#6c6758", [
-          x + dx,
-          9.6,
-          z,
-        ]);
-    }
+    for (const x of [-5.6, -2.4]) box(x, 2.3, 0.1, 0.4, 3, 1, trim);
+    box(-4, 4.65, 0.4, 4.3, 0.3, 2, trim);
+    for (const x of [-7.5, -0.5])
+      for (const y of [6.3, 9.4]) windowAt(x, y, -0.1, 1.3, 2.1);
+    windowAt(-4, 9.4, -0.1, 1.7, 2.1);
     const interiors = new THREE.Group();
     scene.add(interiors);
     interiors.visible = false;
     activeParent = interiors;
     // Low walls and door gaps keep every interior readable in the cutaway.
     box(-1, 0.88, -4.3, 20, 0.14, 6.5, "#756d57");
-    box(-1, 1.6, -7.5, 20, 1.4, 0.25, stone);
+    box(-8, 1.6, -7.5, 6, 1.4, 0.25, stone);
+    box(3, 1.6, -7.5, 12, 1.4, 0.25, stone);
     for (const x of [-11, 9]) box(x, 1.6, -4.3, 0.25, 1.4, 6.5, stone);
     for (const x of [-6, -2, 4]) {
       box(x, 1.6, -6.5, 0.2, 1.4, 2);
@@ -419,9 +309,9 @@ export default function CastleWorld(props: Props) {
     ] as Array<[number, number, number, number, string]>)
       box(x, 0.98, z, w, 0.06, d, color);
     // Tavern: long dining table, chairs, sideboard and bottle-shaped traps as decor.
-    box(-8.4, 1.5, -4.1, 1.5, 0.15, 3.1, "#62442e");
+    box(-8.4, 1.5, -5.5, 1.5, 0.15, 1.6, "#62442e");
     for (const x of [-9.6, -7.2])
-      for (const z of [-5.2, -4, -2.8]) {
+      for (const z of [-6.5, -4.5]) {
         box(x, 1.2, z, 0.6, 0.15, 0.65, "#4e392b");
         box(x, 1.6, z + 0.3, 0.6, 0.75, 0.1, "#4e392b");
       }
@@ -470,8 +360,8 @@ export default function CastleWorld(props: Props) {
             ["#857348", "#576346", "#7c4b3c", "#637477"][b],
           );
     }
-    box(1, 1.5, -3.4, 1.8, 0.15, 0.9, "#63503a");
-    box(1, 1.61, -3.4, 0.65, 0.05, 0.4, "#d7caa5");
+    box(1, 1.5, -5, 1.8, 0.15, 0.9, "#63503a");
+    box(1, 1.61, -5, 0.65, 0.05, 0.4, "#d7caa5");
     // Antique photographs of the mansion's fictional former residents.
     const portraitPlaceholder = document.createElement("canvas");
     portraitPlaceholder.width = portraitPlaceholder.height = 1;
@@ -592,81 +482,315 @@ export default function CastleWorld(props: Props) {
       }
     }
     const storeys = new Map<number, THREE.Group>();
-    for (const level of [-1, 1, 2]) {
-      const group = new THREE.Group();
-      scene.add(group);
-      storeys.set(level, group);
-      activeParent = group;
-      const y = 0.9 + Math.max(0, level) * 3.5;
-      box(0, y - 0.15, -4, 21, 0.25, 7, level === -1 ? "#303b42" : "#817465");
-      box(0, y + 0.7, -7.5, 21, 1.4, 0.2, stone);
-      for (const x of [-10.5, -3.5, 3.5, 10.5])
-        box(x, y + 0.6, -4, 0.2, 1.2, 7, stone);
-      for (let i = 0; i < 3; i++) {
-        const x = -7 + i * 7;
-        box(
-          x,
-          y + 0.02,
-          -4,
-          4.5,
-          0.04,
-          4,
-          level === -1 ? "#283d42" : level === 1 ? "#775358" : "#666b4f",
-        );
-        if (level === 1 && i === 1) {
-          box(x, y + 0.45, -4, 2.2, 0.6, 3, "#554139");
-          box(x, y + 0.8, -4, 2, 0.2, 2.7, "#a29bba");
-          for (const dx of [-1, 1])
-            for (const dz of [-1.4, 1.4])
-              box(x + dx, y + 1.4, -4 + dz, 0.1, 2.8, 0.1, "#554139");
-        } else if (level === 2 && i === 1) {
-          for (const dx of [-1.5, 0, 1.5]) {
-            box(x + dx, y + 1, -5, 1, 2, 0.7, "#35494c");
-            for (let k = 0; k < 4; k++)
-              box(x + dx, y + 0.3 + k * 0.4, -4.62, 0.7, 0.08, 0.02, "#8ec6ad");
-          }
-        } else if (level === -1 && i === 1) {
-          box(x, y + 0.05, -4, 5, 0.1, 5, "#35545e");
+    // A huge, single-storey mansion: 21 new rooms around broad connected galleries.
+    box(0, 0.76, -36, 88, 0.28, 76, stone, scene);
+    for (let row = 0; row < 3; row++) {
+      box(0, 0.91, -12 - row * 24, 86, 0.06, 3.4, "#b0a387");
+      for (let col = 0; col <= 7; col++)
+        box(-42 + col * 12, 0.91, -36, 2.5, 0.06, 50, "#b0a387");
+    }
+    box(-4, 0.9, -8.7, 2, 0.1, 3, stone);
+    for (const room of ANNEX_ROOMS) {
+      const { x, z, index, id } = room;
+      const dark = ["coldstorage", "cinema", "drain"].includes(id);
+      box(
+        x,
+        0.93,
+        z,
+        9.8,
+        0.1,
+        9.4,
+        dark
+          ? "#3c4948"
+          : ["#756655", "#6b7868", "#715e59", "#637678"][index % 4],
+      );
+      if ([9, 10, 11].includes(index)) {
+        for (const dx of [-3.2, 3.2])
+          box(x + dx, 1.65, z - 4.8, 3.6, 1.5, 0.2, stone);
+      } else box(x, 1.65, z - 4.8, 10, 1.5, 0.2, stone);
+      for (const dx of [-5, 5]) box(x + dx, 1.65, z, 0.2, 1.5, 9.6, stone);
+      // A generous front door, aligned with its routing node.
+      for (const dx of [-3.2, 3.2])
+        box(x + dx, 1.65, z + 4.8, 3.6, 1.5, 0.2, stone);
+      box(x, 0.99, z + 4.8, 2.8, 0.08, 0.5, trim);
+      const rug = ["#875f50", "#526b64", "#76704e", "#5c576c"][index % 4];
+      box(x, 1.01, z, 6.5, 0.04, 5.8, rug);
+      if (["floodedcellar", "bathhouse"].includes(id)) {
+        box(x, 1.05, z, 6.5, 0.12, 6, "#426f79");
+        for (const dx of [-3.6, 3.6])
+          box(x + dx, 1.25, z, 0.35, 0.5, 6.5, trim);
+      } else if (id === "dormitory") {
+        for (const dx of [-2.5, 2.5]) {
+          box(x + dx, 1.4, z - 1, 2, 0.8, 3.2, "#574334");
+          box(x + dx, 1.86, z - 1, 1.9, 0.15, 3, "#8c626b");
+          box(x + dx, 2.8, z - 1, 2.2, 0.15, 3.4, "#574334");
+        }
+      } else if (["serverloft", "workshop", "laboratory"].includes(id)) {
+        for (const dx of [-3, 0, 3]) {
+          box(x + dx, 1.9, z - 2.8, 1.6, 1.9, 0.9, "#34494b");
           for (let k = 0; k < 4; k++)
-            mesh(new THREE.TorusGeometry(0.3, 0.06, 6, 16), "#879b9f", [
-              x - 2 + k * 1.2,
-              y + 0.3,
-              -6,
-            ]);
-        } else {
-          box(x, y + 0.5, -4, 1.8, 0.2, 1, "#6e5945");
+            box(x + dx, 1.25 + k * 0.4, z - 2.3, 1.3, 0.06, 0.05, "#91bdb0");
+        }
+      } else if (id === "music") {
+        box(x - 2, 1.6, z - 1, 2.5, 1.3, 2, "#293b37");
+        box(x - 2, 2.3, z, 2.3, 0.1, 0.6, "#ded6b8");
+        for (let k = 0; k < 9; k++)
+          box(x - 3 + k * 0.25, 2.36, z + 0.1, 0.08, 0.06, 0.35, "#252e2b");
+      } else if (id === "cinema") {
+        box(x, 2.5, z - 4.6, 6, 2.4, 0.1, "#b8b3a0");
+        for (const dx of [-2, 0, 2])
+          for (const dz of [-1.5, 0])
+            box(x + dx, 1.4, z + dz, 1.1, 0.8, 0.9, "#65474e");
+      } else if (["orangery", "wardrobe", "mailroom"].includes(id)) {
+        for (const dx of [-3, 0, 3]) {
+          box(x + dx, 1.3, z - 2, 1, 0.6, 1, "#8f7254");
           mesh(
-            new THREE.IcosahedronGeometry(0.35, 1),
-            level === -1 ? "#729ea9" : "#c1b08a",
-            [x, y + 0.95, -4],
+            new THREE.IcosahedronGeometry(0.8, 0),
+            id === "orangery" ? "#617d4b" : "#ad9568",
+            [x + dx, 2.1, z - 2],
           );
         }
-        const lamp = mesh(
-          new THREE.SphereGeometry(0.1, 8, 6),
-          level === -1 ? "#90b2d7" : "#f6d59a",
-          [x, y + 1.6, -6.6],
+      } else if (["kitchen", "dining", "billiards"].includes(id)) {
+        box(
+          x,
+          1.6,
+          z - 1,
+          5,
+          0.25,
+          2.6,
+          id === "billiards" ? "#3f7160" : "#6d5038",
         );
-        lamp.material.emissive.set(level === -1 ? "#5e7cbe" : "#db9848");
-        lamp.material.emissiveIntensity = 1;
+        for (const dx of [-2, 2])
+          for (const dz of [-2, 0])
+            box(x + dx, 1.25, z + dz, 0.6, 0.6, 0.6, "#624c37");
+        for (let k = 0; k < 4; k++)
+          mesh(
+            new THREE.SphereGeometry(0.12, 6, 5),
+            ["#e3d8b8", "#b85442", "#ceaa61", "#738d9c"][k],
+            [x - 1.5 + k, 1.84, z - 1],
+          );
+      } else {
+        // Desks, curios and reading shelves sit behind the clear arrival area.
+        box(x, 1.55, z - 1.8, 3.2, 0.2, 1.5, "#68513d");
+        mesh(
+          new THREE.IcosahedronGeometry(0.45, 1),
+          dark ? "#89a3a5" : "#c9b26d",
+          [x, 2.05, z - 1.8],
+        );
+        for (const dx of [-3.5, 3.5]) {
+          box(x + dx, 1.8, z - 3.8, 1.6, 1.8, 0.45, "#4a4436");
+          for (let k = 0; k < 5; k++)
+            box(
+              x + dx - 0.6 + k * 0.3,
+              1.9,
+              z - 3.5,
+              0.2,
+              1.4,
+              0.2,
+              ["#75816b", "#9d7458", "#787695"][k % 3],
+            );
+        }
+      }
+      for (const dx of [-2.5, 2.5]) {
+        box(x + dx, 3, z - 4.65, 1.7, 1.9, 0.12, "#a1844c");
         const photo = portraitAtlas.clone();
         photo.repeat.set(0.25, 0.25);
-        const index = (level + 1) * 3 + i;
-        photo.offset.set(
-          (index % 4) * 0.25,
-          0.75 - Math.floor(index / 4) * 0.25,
-        );
+        const n = (index * 2 + (dx > 0 ? 1 : 0)) % 16;
+        photo.offset.set((n % 4) * 0.25, 0.75 - Math.floor(n / 4) * 0.25);
         textures.add(photo);
-        box(x, y + 2, -7.3, 1.4, 1.5, 0.15, "#a1844c");
-        const frame = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.2, 1.3),
+        const portrait = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.5, 1.7),
           new THREE.MeshBasicMaterial({ map: photo }),
         );
-        frame.position.set(x, y + 2, -7.2);
-        group.add(frame);
+        portrait.position.set(x + dx, 3, z - 4.57);
+        interiors.add(portrait);
       }
-      for (let j = 0; j < 10; j++)
-        box(-9 + j * 0.25, y + j * 0.1, -1.3, 0.4, 0.12, 1, trim);
-      group.visible = false;
+      // All annex roofs lift with the original castle; there is no upper floor.
+      activeParent = upperCastle;
+      box(x, 3.1, z - 4.8, 10, 3.6, 0.25, stone);
+      for (const dx of [-5, 5]) box(x + dx, 3.1, z, 0.25, 3.6, 9.6, stone);
+
+      for (const dx of [-3, 3])
+        box(x + dx, 3.5, z - 4.96, 1, 1.8, 0.08, "#40504d");
+      activeParent = interiors;
+    }
+    // Four attached ranges enclose a generous court. Hip roofs meet at the
+    // corners; their ridges follow the wings instead of spanning an empty shed.
+    activeParent = upperCastle;
+    function hipRoof(
+      x: number,
+      y: number,
+      z: number,
+      w: number,
+      d: number,
+      h: number,
+      turn = false,
+    ) {
+      const inset = Math.min(d * 0.48, w * 0.22);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+          [
+            -w / 2,
+            0,
+            -d / 2,
+            w / 2,
+            0,
+            -d / 2,
+            w / 2,
+            0,
+            d / 2,
+            -w / 2,
+            0,
+            d / 2,
+            -w / 2 + inset,
+            h,
+            0,
+            w / 2 - inset,
+            h,
+            0,
+          ],
+          3,
+        ),
+      );
+      geo.setIndex([0, 4, 5, 0, 5, 1, 3, 2, 5, 3, 5, 4, 0, 3, 4, 1, 5, 2]);
+      // Keep the standard attribute layout for static batching, and separate
+      // face normals so the hips have crisp edges rather than pillowed shading.
+      geo.setAttribute(
+        "uv",
+        new THREE.Float32BufferAttribute(new Float32Array(12), 2),
+      );
+      const faces = geo.toNonIndexed();
+      geo.dispose();
+      faces.computeVertexNormals();
+      if (turn) faces.rotateY(Math.PI / 2);
+      return mesh(faces, roofColor, [x, y, z]);
+    }
+    // Two stone levels are exterior ornament only; all play stays on the ground.
+    for (const z of [-1, -73]) {
+      for (const side of [-1, 1]) {
+        box(side * 25, 5.6, z, 36, 9.5, 0.5, stone);
+        box(side * 25, 10.5, z, 36, 0.35, 0.85, trim);
+        box(side * 25, 5.5, z, 36, 0.2, 0.75, trim);
+      }
+      if (z < -1) box(0, 5.6, z, 14, 9.5, 0.5, stone);
+      for (let x = -39; x <= 39; x += 6) {
+        if (z === -1 && x > -11 && x < 4) continue;
+        for (const y of [3.3, 8]) windowAt(x, y, z + 0.3, 1.4, 2.3);
+        box(x + 2.8, 5.6, z + 0.3, 0.5, 9.7, 0.6, trim);
+      }
+    }
+    for (const x of [-43, 43]) {
+      box(x, 5.6, -37, 0.5, 9.5, 72, stone);
+      for (const y of [1.1, 5.5, 10.5]) box(x, y, -37, 0.8, 0.3, 72, trim);
+      for (let z = -7; z >= -67; z -= 6) {
+        box(x, 5.6, z + 2.8, 0.8, 9.5, 0.5, trim);
+        for (const y of [3.3, 8]) {
+          box(x, y, z, 0.65, 2.6, 1.7, trim);
+          box(x + Math.sign(x) * 0.36, y, z, 0.1, 2.3, 1.4, "#293c38");
+          box(x + Math.sign(x) * 0.43, y, z, 0.05, 0.09, 1.4, trim);
+          box(x + Math.sign(x) * 0.43, y, z, 0.05, 2.3, 0.09, trim);
+        }
+      }
+    }
+    hipRoof(0, 10.7, -7, 87, 13, 4.4);
+    hipRoof(0, 10.7, -19, 87, 13, 4.4);
+    hipRoof(0, 10.7, -67, 87, 14, 4.8);
+    for (const x of [-31, 31]) hipRoof(x, 10.7, -43, 36, 25, 6, true);
+    // One dominant keep, balanced by smaller corner pavilions.
+    box(-19, 12.3, -5, 8, 23, 8, stone);
+    box(-19, 24, -5, 8.7, 0.6, 8.7, trim);
+    hipRoof(-19, 24.3, -5, 9, 9, 5);
+    for (const dx of [-3.8, 3.8])
+      for (const dz of [-3.8, 3.8]) turret(-19 + dx, -5 + dz, 20, 5, 0.65);
+    for (const y of [7.5, 12.5, 17.5, 21.5])
+      for (const x of [-21, -17]) windowAt(x, y, -0.85, 1.25, 2.1);
+    for (const x of [-41, 41])
+      for (const z of [-3, -71]) {
+        box(x, 7.6, z, 5.8, 13.5, 5.8, stone);
+        box(x, 14.5, z, 6.2, 0.4, 6.2, trim);
+        hipRoof(x, 14.7, z, 6.8, 6.8, 4.5);
+        for (const y of [4.2, 9.7]) windowAt(x, y, z + 3, 1.4, 2.3);
+        for (const dx of [-2.6, 2.6]) turret(x + dx, z + 2.6, 11.7, 3.5, 0.55);
+      }
+    // Repeated gabled bays and proper chimney stacks tie the whole frontage together.
+    for (const x of [-32, -11, 11, 24, 34]) {
+      box(x, 10.8, -1.5, 4.5, 3.6, 3, stone);
+      roof(x, 12.7, -1.5, 5, 3.5, 2.7);
+      for (let k = 0; k < 5; k++)
+        for (const sign of [-1, 1])
+          box(
+            x + sign * (2.2 - k * 0.44),
+            12.7 + k * 0.5,
+            0.3,
+            0.55,
+            0.6,
+            0.45,
+            trim,
+          );
+      windowAt(x, 11.3, 0.1, 1.5, 1.8);
+    }
+    for (const x of [-32, -8, 16, 32])
+      for (const z of [-9, -67]) {
+        box(x, 15.8, z, 1.4, 3.3, 1.4, stone);
+        box(x, 17.5, z, 1.8, 0.3, 1.8, trim);
+        for (const dx of [-0.4, 0.4])
+          mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.65, 6), "#796553", [
+            x + dx,
+            17.95,
+            z,
+          ]);
+      }
+    // Courtyard elevations enclose the open air, with a colonnade at walking level.
+    for (const z of [-25, -60]) {
+      box(0, 8, z, 37, 5, 0.4, stone);
+      box(0, 10.5, z, 37, 0.3, 0.7, trim);
+      for (let x = -16; x <= 16; x += 4) {
+        box(x, 3.2, z, 0.45, 4.8, 0.6, trim);
+        windowAt(x, 8, z + 0.3, 1.2, 1.9);
+        const arch = mesh(
+          new THREE.TorusGeometry(1.7, 0.16, 6, 16, Math.PI),
+          trim,
+          [x + 2, 4.6, z],
+        );
+        arch.rotation.z = 0;
+      }
+    }
+    for (const x of [-18.5, 18.5]) {
+      box(x, 8, -42.5, 0.4, 5, 35, stone);
+      box(x, 10.5, -42.5, 0.7, 0.3, 35, trim);
+      for (let z = -28; z >= -56; z -= 4) {
+        box(x, 3.2, z, 0.6, 4.8, 0.45, trim);
+        box(x, 8, z, 0.6, 2.1, 1.4, trim);
+        box(x - Math.sign(x) * 0.35, 8, z, 0.08, 1.8, 1.1, "#293c38");
+      }
+    }
+    activeParent = scene;
+    box(0, 0.94, -42.5, 36, 0.16, 35, "#b2a58b");
+    for (const x of [-11, 11])
+      for (const z of [-32, -52]) {
+        box(x, 1.05, z, 8, 0.2, 10, "#7e8560");
+        for (const dx of [-4, 4])
+          box(x + dx, 1.4, z, 0.5, 0.7, 10.5, "#456242");
+        for (const dz of [-5, 5]) box(x, 1.4, z + dz, 8.5, 0.7, 0.5, "#456242");
+        mesh(new THREE.SphereGeometry(1.3, 8, 6), "#587348", [x, 2.2, z]);
+      }
+    mesh(new THREE.CylinderGeometry(2.5, 2.7, 0.55, 32), trim, [0, 1.2, -42]);
+    mesh(
+      new THREE.CylinderGeometry(2.25, 2.25, 0.04, 32),
+      "#588e92",
+      [0, 1.5, -42],
+    );
+    mesh(new THREE.CylinderGeometry(0.35, 0.65, 1.5, 12), stone, [0, 2.2, -42]);
+    mesh(new THREE.SphereGeometry(0.6, 12, 8), "#ae986d", [0, 3.2, -42]);
+    for (const x of [-8, 8])
+      for (const z of [-39, -45]) box(x, 1.4, z, 3, 0.45, 0.8, "#6b5b40");
+    activeParent = interiors;
+    // The broad front galleries tie the entrance rooms into the same footprint.
+    for (const x of [-27, 27]) {
+      box(x, 0.93, -5.5, 32, 0.1, 9, "#918571");
+      box(x, 1.65, -1, 32, 1.5, 0.3, stone);
     }
     activeParent = interiors;
     // Hearth, candlesticks, a grandfather clock, and abandoned letters.
@@ -724,8 +848,7 @@ export default function CastleWorld(props: Props) {
         });
       }
     });
-    let openness = 0,
-      previousOpen = false;
+    let openness = 0;
 
     // A broad terrace and curved staircase echo the show's entrance approach.
     for (let i = 0; i < 8; i++) {
@@ -777,6 +900,12 @@ export default function CastleWorld(props: Props) {
         box(x, 1.2, z, 0.14, 0.8, 0.14, trim);
     for (const x of [-11.7, 11.7]) box(x, 1.65, 0, 0.28, 0.18, 12, trim);
     box(0, -0.015, 13, 3, 0.1, 9, "#8d8d72");
+    // Enlarge every garden object and authored route by the same transform.
+    const gardenRoot = new THREE.Group();
+    gardenRoot.scale.set(1.8, 1, 1.8);
+    gardenRoot.position.z = -4;
+    scene.add(gardenRoot);
+    const beforeGardens = new Set(scene.children);
     // Formal hedges, lawn paths and a stream retain the eight game destinations.
     for (const x of [-10, -6, 6, 10]) box(x, 0.35, 9, 0.65, 0.8, 6, "#304a2a");
     for (const z of [6.2, 11.8]) {
@@ -1018,7 +1147,7 @@ export default function CastleWorld(props: Props) {
       knot.rotation.x = -Math.PI / 2;
       knot.scale.set(0.64, 0.64, 0.64);
       knot.position.set(8.9, 0.15, 29.1);
-      scene.add(knot);
+      gardenRoot.add(knot);
     });
     for (let i = 0; i < 9; i++) {
       const x = 14 + (i % 3) * 2,
@@ -1094,17 +1223,28 @@ export default function CastleWorld(props: Props) {
     mesh(new THREE.ConeGeometry(1.8, 2.2, 12), "#d4c8a2", [20, 11.3, 4]);
     for (const y of [2, 4.5, 7]) box(20, y, 5.5, 0.45, 1, 0.08, "#52616a");
     box(20, 0.035, 8, 1, 0.06, 7, "#9b967e");
+    for (const child of [...scene.children]) {
+      if (beforeGardens.has(child)) continue;
+      if (
+        child.position.z >= 5 ||
+        (Math.abs(child.position.x) > 12 && child.position.z >= 0) ||
+        child === flowers ||
+        child === healCross ||
+        [...serviceRoofs.values()].includes(child as THREE.Group)
+      )
+        gardenRoot.add(child);
+    }
     // Cypress-lined grounds; instancing keeps the woodland inexpensive on phones.
     const treePositions: Array<[number, number, number]> = [];
     for (let i = 0; i < 80; i++) {
       const a = i * 2.399963,
-        r = 18 + (i % 6) * 1.7;
+        r = 78 + (i % 6) * 2.7;
       const x = Math.cos(a) * r,
-        z = Math.sin(a) * r - 4;
+        z = Math.sin(a) * r - 20;
       if (z > 10 || (z > 4 && x > 10)) continue;
       treePositions.push([x, 3.5 + (i % 4) * 0.8, z]);
     }
-    for (const x of [-17, 17])
+    for (const x of [-48, 48])
       for (let z = -9; z <= 3; z += 4) treePositions.push([x, 5.7, z]);
     const trees = new THREE.InstancedMesh(
       new THREE.ConeGeometry(1.5, 7, 8),
@@ -1133,7 +1273,7 @@ export default function CastleWorld(props: Props) {
       const hill = mesh(new THREE.IcosahedronGeometry(12, 1), "#253b30", [
         -48 + i * 12,
         -1,
-        -35 - (i % 2) * 10,
+        -96 - (i % 2) * 10,
       ]);
       hill.scale.set(1.5, 0.55, 1);
     }
@@ -1219,7 +1359,7 @@ export default function CastleWorld(props: Props) {
       if (o instanceof THREE.Mesh && !Array.isArray(o.material))
         upperMaterials.add(o.material);
     });
-    label("BASE CAMP", -3, 0.7, 12, 2.5);
+    label("BASE CAMP", POSITIONS.camp[0], 0.7, POSITIONS.camp[2], 2.5);
 
     const targets: THREE.Object3D[] = [];
     const halos = new Map<string, THREE.Mesh>();
@@ -1256,7 +1396,28 @@ export default function CastleWorld(props: Props) {
     });
     const petObjects = new Map<
       string,
-      { object: THREE.Group; target: THREE.Vector3; image?: string }
+      {
+        object: THREE.Group;
+        target: THREE.Vector3;
+        image?: string;
+        spriteRows?: 9 | 11;
+        sprite?: THREE.Sprite;
+        location: string;
+        from: string;
+        journey?: Journey;
+        elapsed: number;
+        floor: number;
+        phase: number;
+        stride: number;
+        runBlend: number;
+        effectStamp?: number;
+        effectElapsed: number;
+        rig?: THREE.Group;
+        legs: THREE.Group[];
+        wings: THREE.Mesh[];
+        tag: THREE.Sprite;
+        trail: THREE.Line;
+      }
     >();
     const todd = new THREE.Group();
     mesh(new THREE.SphereGeometry(0.48, 20, 16), "#262531", [0, 0, 0], todd);
@@ -1270,10 +1431,17 @@ export default function CastleWorld(props: Props) {
     scene.add(todd);
     todd.visible = false;
     let previousPets: Pet[] | null = null;
+    let toddLocation: string | null = null,
+      toddJourney: Journey | undefined,
+      toddElapsed = 0;
     function disposeObject(object: THREE.Object3D) {
       object.traverse((child) => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.Sprite) {
-          if (child instanceof THREE.Mesh) child.geometry.dispose();
+        if (
+          child instanceof THREE.Mesh ||
+          child instanceof THREE.Sprite ||
+          child instanceof THREE.Line
+        ) {
+          if (!(child instanceof THREE.Sprite)) child.geometry.dispose();
           const materials = Array.isArray(child.material)
             ? child.material
             : [child.material];
@@ -1289,36 +1457,92 @@ export default function CastleWorld(props: Props) {
       });
       scene.remove(object);
     }
-    function updatePets(open: boolean) {
+    function updatePets() {
       const pets = latest.current.pets;
-      if (pets === previousPets && open === previousOpen) return;
-      previousOpen = open;
+      if (pets === previousPets) return;
       previousPets = pets;
       for (const [id, p] of petObjects)
         if (!pets.some((p) => p.id === id)) {
           disposeObject(p.object);
+          disposeObject(p.trail);
           petObjects.delete(id);
         }
       pets.forEach((p, i) => {
+        const peers = pets.filter((q) => q.location === p.location);
+        const end = roomPoint(
+          p.location,
+          peers.findIndex((q) => q.id === p.id),
+          peers.length,
+        );
         let item = petObjects.get(p.id);
+        const retained = item?.object.position.clone();
+        if (
+          item &&
+          (item.image !== p.image || item.spriteRows !== p.spriteRows)
+        ) {
+          disposeObject(item.object);
+          disposeObject(item.trail);
+          petObjects.delete(p.id);
+          item = undefined;
+        }
         if (!item) {
           const group = new THREE.Group();
           scene.add(group);
-          item = { object: group, target: new THREE.Vector3(), image: p.image };
+          const tag = label(p.name, 0, 1.25, 0, 2.2);
+          group.add(tag);
+          const trail = new THREE.Line(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({
+              color: p.color,
+              transparent: true,
+              opacity: 0.4,
+              depthWrite: false,
+            }),
+          );
+          trail.visible = false;
+          scene.add(trail);
+          item = {
+            object: group,
+            target: new THREE.Vector3(...end),
+            image: p.image,
+            spriteRows: p.spriteRows,
+            location: p.location,
+            from: p.location,
+            elapsed: 0,
+            floor: ROOM_FLOORS[p.location] ?? 0,
+            phase: 0,
+            stride: 0,
+            runBlend: 0,
+            effectElapsed: 0,
+            legs: [],
+            wings: [],
+            tag,
+            trail,
+          };
           petObjects.set(p.id, item);
           if (p.image) {
             const tex = new THREE.TextureLoader().load(p.image, (t) => {
-              if (disposed) {
+              if (disposed || !group.parent) {
                 t.dispose();
                 return;
               }
               t.colorSpace = THREE.SRGBColorSpace;
             });
+            tex.colorSpace = THREE.SRGBColorSpace;
+            if (p.spriteRows) {
+              tex.repeat.set(1 / 8, 1 / p.spriteRows);
+              tex.offset.set(0, 1 - 1 / p.spriteRows);
+            }
             textures.add(tex);
             const sprite = new THREE.Sprite(
-              new THREE.SpriteMaterial({ map: tex }),
+              new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                depthWrite: false,
+              }),
             );
-            sprite.scale.set(1.5, 1.5, 1);
+            sprite.scale.set(1.5, p.spriteRows ? 1.625 : 1.5, 1);
+            item.sprite = sprite;
             group.add(sprite);
           } else {
             mesh(
@@ -1347,6 +1571,8 @@ export default function CastleWorld(props: Props) {
                   group,
                 );
                 wing.rotation.z = x > 0 ? -0.8 : 0.8;
+                wing.userData.rest = wing.rotation.z;
+                item.wings.push(wing);
               }
             }
             if (p.species === "frog")
@@ -1402,13 +1628,17 @@ export default function CastleWorld(props: Props) {
                   [x, 0.38, 0],
                   group,
                 );
-              if (p.species === "owl" || p.species === "dragon")
-                mesh(
+              if (p.species === "owl") {
+                const wing = mesh(
                   new THREE.SphereGeometry(0.25, 6, 4),
                   p.color,
                   [x * 2.7, -0.02, 0],
                   group,
-                ).scale.set(1, 0.35, 1.6);
+                );
+                wing.scale.set(1, 0.35, 1.6);
+                wing.userData.rest = 0;
+                item.wings.push(wing);
+              }
               mesh(
                 new THREE.SphereGeometry(0.055, 6, 6),
                 PALETTE.dark,
@@ -1424,6 +1654,45 @@ export default function CastleWorld(props: Props) {
             );
             if (p.species === "robot")
               box(0, 0.5, 0, 0.08, 0.3, 0.08, PALETTE.dark, group);
+          }
+          if (!p.image) {
+            const rig = new THREE.Group();
+            for (const child of [...group.children])
+              if (child !== tag) rig.add(child);
+            group.add(rig);
+            item.rig = rig;
+            if (p.species !== "ghost") {
+              const feet =
+                p.species === "robot" || p.species === "owl"
+                  ? [
+                      [-0.22, 0],
+                      [0.22, 0],
+                    ]
+                  : [
+                      [-0.23, 0.24],
+                      [0.23, 0.24],
+                      [-0.23, -0.24],
+                      [0.23, -0.24],
+                    ];
+              feet.forEach(([x, z], index) => {
+                const leg = new THREE.Group();
+                leg.position.set(x, -0.22, z);
+                rig.add(leg);
+                mesh(
+                  new THREE.CapsuleGeometry(
+                    p.species === "frog" ? 0.13 : 0.09,
+                    0.25,
+                    2,
+                    5,
+                  ),
+                  p.species === "owl" ? "#c99648" : p.color,
+                  [0, -0.16, 0.03],
+                  leg,
+                );
+                leg.userData.phase = index === 0 || index === 3 ? 0 : Math.PI;
+                item!.legs.push(leg);
+              });
+            }
           }
           const effect = new THREE.Group();
           effect.name = "effect";
@@ -1453,20 +1722,30 @@ export default function CastleWorld(props: Props) {
             [0.6, 0.5, 0],
             resetButton,
           );
-          group.position.set(-3, 0.8, 11);
+          group.position.copy(retained || new THREE.Vector3(...end));
         }
-        const base =
-          (open && INTERIORS[p.location]) ||
-          POSITIONS[p.location] ||
-          POSITIONS.camp;
-        const peers = pets.filter((q) => q.location === p.location),
-          index = peers.findIndex((q) => q.id === p.id),
-          angle = (index / Math.max(peers.length, 1)) * Math.PI * 2;
-        item.target.set(
-          base[0] + Math.cos(angle) * 0.8,
-          base[1] + 0.8,
-          base[2] + Math.sin(angle) * 0.8,
-        );
+        if (item.location !== p.location) {
+          item.from = item.location;
+          item.journey = planJourney(
+            item.location,
+            p.location,
+            item.object.position.toArray() as Point,
+            end,
+            (p as Pet & { stats?: { speed: number } }).stats?.speed ?? 4,
+            item.floor,
+          );
+          item.elapsed = 0;
+          item.location = p.location;
+          item.trail.geometry.dispose();
+          item.trail.geometry = new THREE.BufferGeometry().setFromPoints(
+            item.journey.points.map((v) => new THREE.Vector3(...v)),
+          );
+        }
+        item.target.fromArray(end);
+        if (item.effectStamp !== p.effect?.at) {
+          item.effectStamp = p.effect?.at;
+          item.effectElapsed = 0;
+        }
         const stats = (p as Pet & { stats?: { smallness: number } }).stats;
         const petScale =
           (p.baby ? 0.8 : 1.25) * (stats ? 1.25 - stats.smallness * 0.065 : 1);
@@ -1524,7 +1803,7 @@ export default function CastleWorld(props: Props) {
       if (!w || !h) return;
       renderer.setSize(w, h);
       const aspect = w / h;
-      const height = Math.max(22, 28 / aspect);
+      const height = Math.max(38, 45 / aspect);
       camera.left = -height * aspect;
       camera.right = height * aspect;
       camera.top = height;
@@ -1538,8 +1817,12 @@ export default function CastleWorld(props: Props) {
     let previousFloor = 0;
     let lastTime = 0,
       frame = 0,
-      lastClothActive = false;
-    const animatedTarget = new THREE.Vector3();
+      lastClothActive = false,
+      animationTime = 0,
+      motionSignature = "",
+      followedFloor: number | null = null;
+    const beforePosition = new THREE.Vector3(),
+      screenRight = new THREE.Vector3();
     renderer.setAnimationLoop((time) => {
       const dt = Math.min(
         0.05,
@@ -1549,9 +1832,16 @@ export default function CastleWorld(props: Props) {
       frame++;
 
       if (document.hidden) return;
+      const step = latest.current.paused ? 0 : dt;
+      animationTime += step;
+      updatePets();
       const open =
         insideRef.current ||
-        latest.current.pets.some((p) => p.location in INTERIORS);
+        latest.current.pets.some((p) => p.location in INTERIORS) ||
+        [...petObjects.values()].some(
+          (p) => p.journey && p.from in INTERIORS,
+        ) ||
+        !!(latest.current.todd && latest.current.todd in INTERIORS);
       const targetOpen = open ? 1 : 0;
       openness = media.matches
         ? targetOpen
@@ -1598,21 +1888,25 @@ export default function CastleWorld(props: Props) {
 
         halos.get(id)!.position.set(x, y + 0.3, z);
       }
-      updatePets(open);
-      const t = time / 1000;
-      const now = Date.now();
-      const breeding = latest.current.pets.some(
-        (p) =>
-          p.effect?.kind === "breed" &&
-          now - p.effect.at < 16000 &&
-          p.location === "nursery",
+      const t = animationTime;
+      for (const actor of petObjects.values())
+        if (!actor.journey) actor.effectElapsed += step;
+      const activeEffect = (kind: string, location: string) =>
+        [...petObjects.values()].some(
+          (actor) =>
+            !actor.journey &&
+            actor.location === location &&
+            actor.effectElapsed < 16 &&
+            (actor.object.userData.pet as Pet).effect?.kind === kind,
+        );
+      const breeding = activeEffect("breed", "nursery");
+      const awaitingBirth = [...petObjects.values()].some(
+        (actor) =>
+          (actor.object.userData.pet as Pet).effect?.kind === "breed" &&
+          actor.location === "nursery" &&
+          (actor.journey || actor.effectElapsed < 16),
       );
-      const treating = latest.current.pets.some(
-        (p) =>
-          p.effect?.kind === "vet" &&
-          now - p.effect.at < 16000 &&
-          p.location === "vet",
-      );
+      const treating = activeEffect("vet", "vet");
       for (const [id, roofGroup] of serviceRoofs) {
         const occupied = latest.current.pets.some((p) => p.location === id);
         roofGroup.position.y = media.matches
@@ -1665,37 +1959,190 @@ export default function CastleWorld(props: Props) {
         : treating
           ? "vet"
           : "seeking";
-      for (const p of petObjects.values()) {
-        animatedTarget.copy(p.target);
-        if (!media.matches)
-          animatedTarget.y +=
-            Math.sin(t * 3 + p.object.userData.offset) * 0.065;
-        p.object.position.lerp(
-          animatedTarget,
-          media.matches ? 1 : 1 - Math.exp(-3.2 * dt),
-        );
+      const travel: Travel[] = [];
+      screenRight.setFromMatrixColumn(camera.matrixWorld, 0);
+      let followFloor: number | null = null;
+      for (const [id, p] of petObjects) {
         const pet = p.object.userData.pet as Pet;
-        const age = now - (pet.effect?.at || 0);
+        beforePosition.copy(p.object.position);
+        let moving = false;
+        if (p.journey) {
+          p.elapsed = media.matches ? p.journey.duration : p.elapsed + step;
+          const sample = sampleJourney(p.journey, p.elapsed);
+          p.object.position.fromArray(sample.position);
+          p.floor = sample.floor;
+          moving = sample.moving;
+          if (moving)
+            travel.push({
+              id,
+              name: pet.name,
+              from: p.from,
+              to: p.location,
+              mode: p.journey.mode,
+            });
+          if (!latest.current.selectedPet || latest.current.selectedPet === id)
+            followFloor ??= p.floor;
+          if (!moving) p.journey = undefined;
+        } else if (step > 0)
+          p.object.position.lerp(
+            p.target,
+            media.matches ? 1 : 1 - Math.exp(-5 * step),
+          );
+        const direction =
+          (p.object.position.x - beforePosition.x) * screenRight.x +
+          (p.object.position.z - beforePosition.z) * screenRight.z;
+        if (p.sprite && Math.abs(direction) > 0.0001)
+          p.sprite.userData.right = direction >= 0;
+        p.phase += media.matches ? 0 : step;
+        if (p.sprite && pet.spriteRows) {
+          const uv = spriteFrame(
+            pet.spriteRows,
+            moving,
+            p.sprite.userData.right !== false,
+            p.phase,
+          );
+          p.sprite.material.map!.offset.set(uv.x, uv.y);
+        }
+        if (p.sprite)
+          p.sprite.position.y = media.matches
+            ? 0
+            : Math.abs(Math.sin(p.phase * (moving ? 12 : 3))) *
+              (moving ? 0.1 : 0.025);
+        const onVisibleFloor =
+          (!(pet.location in INTERIORS) && !p.journey) ||
+          p.floor === visibleFloor;
+        // Exterior portions of a trip remain visible while inspecting any floor.
+        const outside =
+          p.object.position.z > 0.8 ||
+          Math.abs(p.object.position.x) > 11 ||
+          p.object.position.y > 12;
+        const age = p.effectElapsed * 1000;
         p.object.visible =
-          (!(pet.location in INTERIORS) ||
-            (ROOM_FLOORS[pet.location] || 0) === visibleFloor) &&
-          !(breeding && pet.location === "nursery" && (pet.baby || age > 2500));
+          (onVisibleFloor || outside) &&
+          !(pet.baby && pet.location === "nursery" && awaitingBirth) &&
+          !(
+            breeding &&
+            !moving &&
+            pet.location === "nursery" &&
+            (pet.baby || age > 2500)
+          );
+        p.tag.visible = moving || latest.current.selectedPet === id;
+        p.trail.visible =
+          moving &&
+          p.object.visible &&
+          (latest.current.selectedPet === id || !latest.current.selectedPet);
         p.object.rotation.z =
           pet.tipsy && !media.matches
             ? Math.sin(t * 3 + p.object.userData.offset) * 0.23
             : 0;
-        if (pet.tipsy && !media.matches)
-          p.object.position.x += Math.sin(t * 4) * 0.8 * dt;
+        if (!p.sprite && moving && !media.matches)
+          p.object.rotation.z += Math.sin(p.phase * 13) * 0.04;
         const effect = p.object.getObjectByName("effect")!;
         effect.getObjectByName("bottle")!.visible =
-          pet.effect?.kind === "bottle" && age < 16000;
+          pet.effect?.kind === "bottle" && age < 16000 && !moving;
         effect.getObjectByName("reset")!.visible =
-          pet.effect?.kind === "reset" && age < 16000;
-
-        p.object.rotation.y = Math.atan2(
-          camera.position.x - p.object.position.x,
-          camera.position.z - p.object.position.z,
+          pet.effect?.kind === "reset" && age < 16000 && !moving;
+        const travelled = p.object.position.distanceTo(beforePosition);
+        p.stride += media.matches ? 0 : travelled * 7;
+        const velocity = step > 0 ? travelled / step : 0;
+        const targetBlend = moving ? Math.min(1, velocity / 2) : 0;
+        p.runBlend = media.matches
+          ? 0
+          : THREE.MathUtils.lerp(
+              p.runBlend,
+              targetBlend,
+              1 - Math.exp(-12 * step),
+            );
+        if (p.rig) {
+          const flying = moving && p.journey?.mode === "fly";
+          const swimming =
+            moving &&
+            p.journey?.mode === "swim" &&
+            ["lake", "moat", "cistern", "floodedcellar"].includes(p.location) &&
+            p.object.position.distanceTo(p.target) < 3;
+          const hop = Math.abs(Math.sin(p.stride));
+          p.rig.position.y = media.matches
+            ? 0
+            : flying
+              ? Math.sin(p.phase * 7) * 0.07
+              : swimming
+                ? Math.sin(p.phase * 5) * 0.035
+                : hop *
+                  p.runBlend *
+                  (pet.species === "bunny" || pet.species === "frog"
+                    ? 0.23
+                    : 0.1);
+          p.rig.rotation.x = swimming ? -0.22 : -0.07 * p.runBlend;
+          for (const leg of p.legs)
+            leg.rotation.x = media.matches
+              ? 0
+              : Math.sin(p.stride + leg.userData.phase) * 0.75 * p.runBlend;
+          p.wings.forEach((wing, i) => {
+            wing.rotation.z =
+              wing.userData.rest +
+              (media.matches
+                ? 0
+                : Math.sin(p.phase * (flying ? 10 : 3)) *
+                  (flying ? 0.65 : 0.08) *
+                  (i % 2 ? 1 : -1));
+          });
+          if (travelled > 0.0001 && moving) {
+            const yaw = Math.atan2(
+              p.object.position.x - beforePosition.x,
+              p.object.position.z - beforePosition.z,
+            );
+            const turn = Math.atan2(
+              Math.sin(yaw - p.object.rotation.y),
+              Math.cos(yaw - p.object.rotation.y),
+            );
+            p.object.rotation.y +=
+              turn * (media.matches ? 1 : 1 - Math.exp(-10 * step));
+          }
+        }
+      }
+      if (followFloor !== null && followFloor !== followedFloor) {
+        followedFloor = followFloor;
+        floorRef.current = followFloor;
+      }
+      if (!travel.length) followedFloor = null;
+      const signature = travel.map((p) => p.id + ":" + p.to).join("|");
+      if (signature !== motionSignature) {
+        motionSignature = signature;
+        latest.current.onTravelChange?.(travel);
+      }
+      renderer.domElement.dataset.moving = String(travel.length);
+      renderer.domElement.dataset.paused = String(!!latest.current.paused);
+      if (frame % 15 === 0)
+        renderer.domElement.dataset.actors = JSON.stringify(
+          [...petObjects].map(([id, p]) => ({
+            id,
+            location: p.location,
+            x: +p.object.position.x.toFixed(2),
+            y: +p.object.position.y.toFixed(2),
+            z: +p.object.position.z.toFixed(2),
+            floor: p.floor,
+            visible: p.object.visible,
+            stride: +p.stride.toFixed(2),
+          })),
         );
+      if (followRef.current) {
+        const actor =
+          petObjects.get(latest.current.selectedPet || travel[0]?.id || "") ||
+          petObjects.values().next().value;
+        if (actor) {
+          const delta = actor.object.position
+            .clone()
+            .sub(controls.target)
+            .multiplyScalar(media.matches ? 1 : 1 - Math.exp(-4 * dt));
+          controls.target.add(delta);
+          camera.position.add(delta);
+          camera.zoom = THREE.MathUtils.lerp(
+            camera.zoom,
+            2.2,
+            1 - Math.exp(-3 * dt),
+          );
+          camera.updateProjectionMatrix();
+        }
       }
       for (const [id, halo] of halos) {
         halo.visible =
@@ -1716,18 +2163,38 @@ export default function CastleWorld(props: Props) {
         );
       }
       const reveal = latest.current.todd;
+      if (reveal && reveal !== toddLocation) {
+        if (toddLocation)
+          toddJourney = planJourney(
+            toddLocation,
+            reveal,
+            todd.position.toArray() as Point,
+            roomPoint(reveal),
+            5,
+          );
+        else todd.position.fromArray(roomPoint(reveal));
+        toddLocation = reveal;
+        toddElapsed = 0;
+      }
+      if (!reveal) {
+        toddLocation = null;
+        toddJourney = undefined;
+      }
+      let toddFloor = reveal ? (ROOM_FLOORS[reveal] ?? 0) : 0;
+      if (toddJourney) {
+        toddElapsed = media.matches ? toddJourney.duration : toddElapsed + step;
+        const sample = sampleJourney(toddJourney, toddElapsed);
+        todd.position.fromArray(sample.position);
+        toddFloor = sample.floor;
+        if (!sample.moving) toddJourney = undefined;
+      }
       todd.visible =
         !!reveal &&
-        (!(reveal in INTERIORS) || (ROOM_FLOORS[reveal] || 0) === visibleFloor);
-      if (reveal && POSITIONS[reveal]) {
-        const [x, y, z] = (open && INTERIORS[reveal]) || POSITIONS[reveal];
-        todd.position.set(
-          x,
-          y + 1.1 + (media.matches ? 0 : Math.sin(t * 2) * 0.1),
-          z,
-        );
-        todd.lookAt(camera.position);
-      }
+        (!(reveal in INTERIORS) ||
+          toddFloor === visibleFloor ||
+          todd.position.z > 0.8 ||
+          todd.position.y > 12);
+      todd.lookAt(camera.position);
       controls.dampingFactor = 1 - Math.exp(-6 * dt);
       controls.update();
       renderer.render(scene, camera);
@@ -1793,41 +2260,6 @@ export default function CastleWorld(props: Props) {
           <small>Click the light ring to select · Rooms lists all places</small>
         </div>
       )}
-      <div className="floor-controls glass" aria-label="Castle floors">
-        <button
-          aria-label="Previous floor"
-          title="Previous floor"
-          onClick={() => {
-            setFloor(((floor + 4) % 4) - 1);
-            setInside(true);
-          }}
-        >
-          ↓
-        </button>
-        <select
-          aria-label="View floor"
-          value={floor}
-          onChange={(e) => {
-            setFloor(Number(e.target.value));
-            setInside(true);
-          }}
-        >
-          <option value={-1}>Cellars</option>
-          <option value={0}>Ground floor</option>
-          <option value={1}>First floor</option>
-          <option value={2}>Second floor</option>
-        </select>
-        <button
-          aria-label="Next floor"
-          title="Next floor"
-          onClick={() => {
-            setFloor(((floor + 2) % 4) - 1);
-            setInside(true);
-          }}
-        >
-          ↑
-        </button>
-      </div>
       <div className="camera-controls">
         {!(failed || simple) && (
           <>
@@ -1840,7 +2272,17 @@ export default function CastleWorld(props: Props) {
             >
               −
             </button>
-            <button onClick={() => reset.current()}>Reset view</button>
+            <button aria-pressed={follow} onClick={() => setFollow(!follow)}>
+              {follow ? "Stop following" : "Follow pet"}
+            </button>
+            <button
+              onClick={() => {
+                setFollow(false);
+                reset.current();
+              }}
+            >
+              Reset view
+            </button>
             <button
               aria-pressed={inside || autoInside}
               disabled={autoInside}

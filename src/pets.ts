@@ -9,6 +9,8 @@ export type Pet = {
   location: string;
   acted: boolean;
   image?: string;
+  /** Codex atlas: 8 columns; 9 standard rows or 11 including look directions. */
+  spriteRows?: 9 | 11;
   baby?: boolean;
   tipsy?: boolean;
   effect?: { kind: "vet" | "breed" | "bottle" | "reset"; at: number };
@@ -21,9 +23,81 @@ export type Location = {
 };
 export const LOCATIONS: Location[] = [
   {
+    id: "kitchen",
+    name: "Token Kitchen",
+    subtitle: "The chef is sampling the soup at temperature zero.",
+    region: "north",
+  },
+  {
+    id: "music",
+    name: "Attention Music Room",
+    subtitle: "Every instrument insists it is the lead agent.",
+    region: "north",
+  },
+  {
+    id: "billiards",
+    name: "Gradient Billiards",
+    subtitle: "The balls always roll downhill.",
+    region: "north",
+  },
+  {
+    id: "orangery",
+    name: "Synthetic Orangery",
+    subtitle: "The oranges are locally generated.",
+    region: "north",
+  },
+  {
+    id: "mailroom",
+    name: "Agent Mailroom",
+    subtitle: "Find Todd between the undelivered tool calls.",
+    region: "north",
+  },
+  {
+    id: "workshop",
+    name: "Fine-tuning Workshop",
+    subtitle: "Climb the workbench behind the spare adapters.",
+    region: "north",
+  },
+  {
+    id: "cinema",
+    name: "Hallucination Cinema",
+    subtitle: "A dark screening room for pets with night vision.",
+    region: "north",
+  },
+  {
+    id: "bathhouse",
+    name: "Token Baths",
+    subtitle: "Swim through the warm inference pool.",
+    region: "north",
+  },
+  {
+    id: "wardrobe",
+    name: "Prompt Wardrobe",
+    subtitle: "Small pets slip beneath the costumes.",
+    region: "north",
+  },
+  {
+    id: "maproom",
+    name: "Context Map Room",
+    subtitle: "Every map has forgotten its northern edge.",
+    region: "north",
+  },
+  {
+    id: "laboratory",
+    name: "Alignment Laboratory",
+    subtitle: "The beakers are labelled probably safe.",
+    region: "north",
+  },
+  {
+    id: "dining",
+    name: "Banquet of Tokens",
+    subtitle: "The entire feast fits in one context window.",
+    region: "north",
+  },
+  {
     id: "ballroom",
     name: "Transformer Ballroom",
-    subtitle: "The first-floor dance follows an attention pattern.",
+    subtitle: "The west-wing dance follows an attention pattern.",
     region: "north",
   },
   {
@@ -41,12 +115,12 @@ export const LOCATIONS: Location[] = [
   {
     id: "chapel",
     name: "Alignment Chapel",
-    subtitle: "The second-floor choir is unanimously uncertain.",
+    subtitle: "The east-wing choir is unanimously uncertain.",
     region: "north",
   },
   {
     id: "serverloft",
-    name: "GPU Loft",
+    name: "GPU Gallery",
     subtitle: "Climb the racks to the warmest corner.",
     region: "north",
   },
@@ -59,19 +133,19 @@ export const LOCATIONS: Location[] = [
   {
     id: "coldstorage",
     name: "Cold Storage",
-    subtitle: "A dark cellar for cats, owls and ghosts with night vision.",
+    subtitle: "A windowless cold room for pets with night vision.",
     region: "north",
   },
   {
     id: "floodedcellar",
-    name: "Flooded Cellar",
-    subtitle: "Swim under the mansion through the old cooling system.",
+    name: "Cooling Baths",
+    subtitle: "Swim through the sunken cooling pool in the north wing.",
     region: "north",
   },
   {
     id: "drain",
     name: "Context Drain",
-    subtitle: "Squeeze through the lowest maintenance tunnel.",
+    subtitle: "Squeeze into the narrow maintenance alcove.",
     region: "north",
   },
   {
@@ -199,7 +273,7 @@ export const LOCATIONS: Location[] = [
   {
     id: "courtyard",
     name: "Cache Courtyard",
-    subtitle: "Search the entrance terrace.",
+    subtitle: "Search the fountain court at the heart of the castle.",
     region: "south",
   },
 ];

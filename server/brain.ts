@@ -10,7 +10,12 @@ import {
 } from "../src/live/shared.ts";
 import type { Species } from "../src/pets.ts";
 
-export type CardInput = { name: string; description: string; image?: string };
+export type CardInput = {
+  name: string;
+  description: string;
+  image?: string;
+  spriteRows?: 9 | 11;
+};
 export type CardResult = {
   stats: Stats;
   species: Species;
@@ -254,6 +259,18 @@ export function createBrain(
         };
       } catch {
         const aliases: Record<string, RegExp> = {
+          kitchen: /kitchen|chef|soup/iu,
+          music: /music|piano/iu,
+          billiards: /billiard|gradient/iu,
+          orangery: /orangery|orange/iu,
+          mailroom: /mailroom|letter|post/iu,
+          workshop: /workshop|adapter/iu,
+          cinema: /cinema|screen/iu,
+          bathhouse: /bathhouse|token baths|warm pool/iu,
+          wardrobe: /wardrobe|costume/iu,
+          maproom: /maproom|map room|maps/iu,
+          laboratory: /laboratory|beaker|lab/iu,
+          dining: /dining|banquet|feast/iu,
           ballroom: /ballroom|ballroom/iu,
           dormitory: /dormitory|buffer/iu,
           observatory: /observatory|observatory/iu,

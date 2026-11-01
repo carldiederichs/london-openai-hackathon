@@ -4,9 +4,25 @@ export default function PetAvatar({
   pet,
   className = "",
 }: {
-  pet: Pick<Pet, "species" | "color" | "name" | "image">;
+  pet: Pick<Pet, "species" | "color" | "name" | "image" | "spriteRows">;
   className?: string;
 }) {
+  if (pet.image && pet.spriteRows)
+    return (
+      <span
+        className={`pet-avatar sprite-avatar ${className}`}
+        role="img"
+        aria-label={pet.name}
+        style={{
+          display: "inline-block",
+          aspectRatio: "192 / 208",
+          backgroundImage: `url(${JSON.stringify(pet.image)})`,
+          backgroundSize: `800% ${pet.spriteRows * 100}%`,
+          backgroundPosition: "0 0",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+    );
   if (pet.image)
     return (
       <img
@@ -18,6 +34,9 @@ export default function PetAvatar({
   const { species, color } = pet;
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="88"
+      height="88"
       className={`pet-avatar ${className}`}
       viewBox="0 0 88 88"
       role="img"

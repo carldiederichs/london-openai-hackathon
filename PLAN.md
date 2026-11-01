@@ -126,9 +126,9 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
 - [x] Smooth animation timing across frame rates, avoid idle cloth work, batch static geometry and measure draw-call improvement.
 - [x] Repair floor control spacing with equal arrow sizes, consistent gaps and one compact glass bar.
 
-## Final evidence
+## Earlier milestone evidence (multi-floor layout now superseded)
 
-- All requested implementation above is complete. `npm test`: 15 passing tests; TypeScript and production build pass.
+- At that milestone, the implementation above was complete. `npm test`: 15 passing tests; TypeScript and production build pass.
 - Browser verified breeding, vet healing, upstairs movement and automatic floor selection after rendering optimizations. Floor cycling wraps both directions; room search, direct lake selection and pixel-pet gallery were exercised.
 - The final 390px browser viewport had equal client and scroll widths. Physical-device FPS and venue networking remain external checks.
 - Exterior draw calls fell from 737 to 225. Static geometry is batched, obsolete label textures are removed, animation uses elapsed time, and idle duvet work is skipped.
@@ -142,3 +142,18 @@ Do not interact with Notion. Microphone hardware testing is reserved for the use
       one shared charge per hunt, restores 100 usage and cures tipsiness. Keep traps
       out of that room; verify the charge cannot be claimed twice and replenishes
       on a new hunt. All 16 tests and production build pass.
+
+## Current integration: Max's PR and one coherent castle
+
+- [x] Integrate PR #2's practice hunt, Codex sprite importer and elapsed-time journeys while preserving 3D animal bodies, portraits, Tibo reset and care mechanics.
+- [x] Replace multiple playable floors with 26 furnished rooms on one massive ground floor. Keep all 42 hiding places; remove floor controls.
+- [x] Rebuild the exterior as four joined castle ranges around a broad central courtyard, with consistent façades, roof pitches, windows and towers. Closed exterior and cutaway inspected in the browser.
+- [x] Scale gardens across the castle frontage. Share their transform with markers and routes; connect all rooms and service destinations through doors and paths.
+- [x] Add smooth strides, articulated legs, swimming, wingbeats, rounded corners, smooth heading changes and Follow pet. Preserve live position when redirected.
+- [x] Verify pause, ten visible practice journeys, a live host/seeker far-wing move, travel-locked round advancement and a 390px seeker layout without horizontal overflow.
+- [x] Run server and movement regressions: 25 passing tests and successful TypeScript/production build. All destination pairs, court clearance and rear doors covered.
+- [x] Update setup, movement boundaries and verification notes. Actual model calls, physical-phone networking, microphone hardware and CI remain the external checks above.
+- [ ] Finish the merge, push directly to main and verify the remote commit.
+- [ ] Save a local continuity checkpoint with readback; leave the preview open. Notion remains paused.
+
+Multiple playable floors, cellars as a separate floor and floor cycling are superseded by the latest single-floor request. Previous floor-specific checks above are historical evidence only.

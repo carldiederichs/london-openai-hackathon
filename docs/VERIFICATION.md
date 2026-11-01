@@ -64,3 +64,15 @@ GitHub rejected adding a workflow because the current OAuth login lacks `workflo
   usage and clears tipsiness; subsequent visitors receive no further charge.
 - All 16 tests pass, including two simultaneous tavern visitors and recharge after
   restart. TypeScript and production build pass.
+
+### Single-floor courtyard castle and Max PR integration — 1 November 2026
+
+This supersedes the earlier multi-floor layout and its floor controls.
+
+- Integrated Max's PR #2 practice controls, atlas importer and elapsed-time movement, preserving the newer 3D pet bodies, portraits, care animations and Tibo reset.
+- One connected castle contains 26 furnished ground-floor rooms and a broad central courtyard. Four roof ranges, taller consistent façades, a dominant keep and corner towers replace the detached sheds and enormous blank roof. Gardens were enlarged 1.8 times in width/depth, with matching coordinates and routes.
+- All 42 hiding places and three service locations have connected routes. New tests check front-room doors, court fountain clearance, flight above the tallest keep, continuity on retargeting, frame-rate-independent samples and exact arrivals for every destination pair.
+- Final `npm test`: 25 passed. TypeScript and production build passed. The lazy Three.js scene bundle still triggers Vite's size advisory (about 647 kB before gzip); physical-device FPS has not been measured.
+- Browser: closed exterior, open furnished cutaway, ten visible simultaneous journeys, follow camera, pause preserving positions, sprite input disabled during travel, and a live host/seeker far-wing search. The host showed Pets travelling and disabled advancement. The seeker reached Banquet of Tokens with 90 usage.
+- The 390px seeker viewport had a 390px document width. No microphone hardware or actual model request was tested in this integration. Earlier external checks remain open.
+- Screenshots saved locally as castle-courtyard.png and castle-running.png in the task visualization folder; these are evidence, not repository assets.

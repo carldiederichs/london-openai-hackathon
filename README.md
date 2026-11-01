@@ -15,6 +15,10 @@ npm run dev
 
 Open **http://localhost:4173** on the host laptop. Click **Create room**, then let players scan the QR code or open the displayed join link on the same Wi-Fi. The host can start with 1–10 players. A description is enough to join; a resized PNG, JPEG or WebP image is optional.
 
+For an immediate movement demo, open **http://localhost:4173/practice** or choose **Try pet movement**. Send the pack to watch ten guardians travel to different rooms, or select one guardian and click a room. **Todd, run!** moves the visible practice hider. **Loop tour** waits for arrivals before repeating excursions for a shared screen; **Pause** freezes travel and sprite playback. Practice is local to the tab and makes no model calls.
+
+Uploads accept ordinary pet images and Codex sprite sheets at **1536×1872** (9 rows) or **1536×2288** (11 rows). The importer preserves all eight columns and transparent cells, compressing the atlas to fit the existing upload limit. Idle and directional running frames play in the castle; a plain image remains a moving billboard. Practice uploads replace the selected guardian's artwork and retain its preset abilities. Live uploads still create model-backed cards.
+
 The QR code uses a detected LAN address. If the laptop has multiple networks, edit **Connection settings → Host address** on the host screen. Phones must use the laptop's address, not `localhost`. Venue Wi-Fi may isolate devices; a shared hotspot can help. The host microphone works on `localhost` or HTTPS. Players do not need microphone access.
 
 The game works without an API key, using clearly marked offline cards and moves. To enable model-backed play:
@@ -48,12 +52,14 @@ Drag the castle to orbit; scroll or pinch to zoom. Click a room marker or open *
 
 When any pet enters an interior location, the upper castle lifts and fades to reveal furnished rooms. It closes when every pet leaves. **Look inside** previews the cutaway without moving a pet. Pet and roof animation respect reduced-motion preferences.
 
+Resolved moves follow world-space routes through the grounds, terrace, entrance and corridor. Flight routes rise above the building; speed changes travel time. Jointed 3D legs, distance-driven strides, wingbeats, smooth turns, route lines and name tags make journeys visible. All 42 destinations share the same coordinate layout as the rendered rooms and gardens. The host's **Next round** waits for the local travel animation to finish. Todd appears in the lobby and at the round reveal; its active hiding location remains excluded from client state. See [movement notes](docs/MOVEMENT.md) for controls, implementation boundaries and verification.
+
 The 2D prototype and its engine have been removed. The 3D game is the only experience.
 
 ## Checks and production build
 
 ```bash
-npm test          # 16 live engine, transport, and Socket.IO integration tests
+npm test          # game rules, transport, movement and sprite frames
 npm run typecheck
 npm run build
 npm start         # serves dist and the room server at http://localhost:4174
@@ -77,9 +83,9 @@ Development milestones are pushed directly to `main`, as requested. The GitHub A
 
 ## Expanded estate
 
-The map now has 30 hiding places across connected gardens, the ground floor, two upper floors and the dark cellars. The grounds include a lake, boathouse, orchard, glasshouse, pavilion, OpenAI-knot hedge maze, pet graveyard and Ivory Tower. The crypt lives in the graveyard. The cellar cutaway lifts into view for inspection; it is a game cross-section rather than a real floor plan.
+The map has 42 hiding places, including 26 furnished rooms on one massive playable ground floor. Four connected sandstone ranges enclose a broad central fountain courtyard. Matching façades, pitched and hipped slate roofs, a dominant keep and corner turrets make one castle. The upper windows and towers are exterior decoration; no floor switching is required. The enlarged grounds span the castle frontage, with a lake, boathouse, orchard, glasshouse, pavilion, OpenAI-knot hedge maze, pet graveyard and Ivory Tower. The crypt lives in the graveyard; the dark rooms occupy ground-floor wings.
 
-Click the light rings to select destinations. Hover shows access rules and a description. Rooms has a search box; phone players can use those same buttons. Previous/next floor buttons wrap through Cellars, Ground, First and Second; the dropdown jumps directly. Moving to an upper room automatically reveals its floor. Right-drag pans; pinch/scroll zooms.
+Click the light rings to select destinations. Hover shows access rules and a description. Rooms has a search box; phone players can use those same buttons. Selecting an interior opens the cutaway. **Follow pet** follows the selected guardian through the estate; **Reset view** returns to the overview. Right-drag pans; pinch/scroll zooms.
 
 Large pets (smallness 3 or less) reach the belfry rope; tiny pets reach burrows and drains. Water rooms require swimming, high rooms require flight, and cats, owls and ghosts have night vision for the crypt and cold storage. Some specialist destinations require 6 rather than 5 points. Cards retain the 20-point budget.
 

@@ -21,6 +21,15 @@ export const GATES: Record<
   | { stat: Stat; min: number; max?: number; night?: boolean; label?: string }
   | undefined
 > = {
+  workshop: { stat: "climb", min: 5 },
+  bathhouse: { stat: "swim", min: 5 },
+  wardrobe: { stat: "smallness", min: 5 },
+  cinema: {
+    stat: "speed",
+    min: 1,
+    night: true,
+    label: "Night vision · cat, owl, ghost",
+  },
   dormitory: { stat: "smallness", min: 5 },
   observatory: { stat: "flight", min: 5 },
   serverloft: { stat: "climb", min: 5 },
