@@ -1,0 +1,210 @@
+import { LOCATIONS, type Pet } from "../game";
+
+export const STAT_KEYS = [
+  "flight",
+  "smallness",
+  "speed",
+  "climb",
+  "swim",
+] as const;
+export type Stat = (typeof STAT_KEYS)[number];
+export type Stats = Record<Stat, number>;
+export const STAT_LABELS: Record<Stat, string> = {
+  flight: "Flight",
+  smallness: "Smallness",
+  speed: "Speed",
+  climb: "Climb",
+  swim: "Swim",
+};
+export const GATES: Record<string, { stat: Stat; min: number } | undefined> = {
+  tower: { stat: "flight", min: 5 },
+  attic: { stat: "smallness", min: 5 },
+  archives: { stat: "climb", min: 5 },
+  vault: { stat: "speed", min: 5 },
+  moat: { stat: "swim", min: 5 },
+};
+export const LIVE_LOCATIONS = LOCATIONS.map((l) => ({
+  ...l,
+  requires: undefined,
+  subtitle:
+    l.id === "archives"
+      ? "Climb into the library rafters."
+      : l.id === "vault"
+        ? "Dash through the closing vault gate."
+        : l.subtitle,
+}));
+export type LivePet = Pet & {
+  ownerId: string;
+  stats: Stats;
+  flavor: string;
+  origin: "ai" | "fallback" | "bred";
+  readyRound: number;
+};
+export type Player = {
+  id: string;
+  name: string;
+  petId: string;
+  online: boolean;
+};
+export type MoveInput =
+  | { type: "seek"; petId: string; prompt: string }
+  | { type: "vet"; petId: string }
+  | { type: "breed"; petId: string; partnerId: string };
+export type Phase =
+  "lobby" | "hiding" | "seeking" | "resolving" | "results" | "over";
+export type Constraint = "eight" | "emoji" | "rhyme";
+export const CONSTRAINTS: Record<
+  Constraint,
+  { name: string; help: string; example: string }
+> = {
+  eight: {
+    name: "Eight words. One bright idea.",
+    help: "Write a seeking prompt using at most eight words.",
+    example: "Tiny paws, check the attic for Todd.",
+  },
+  emoji: {
+    name: "No words. Just vibes.",
+    help: "Send only emoji, spaces, and punctuation.",
+    example: "🪽 🏰 🔍 👀",
+  },
+  rhyme: {
+    name: "Seek in a couplet.",
+    help: "Write two short lines that rhyme. AI checks the rhyme; offline mode checks the last two letters.",
+    example: "I take my flight,\nTo the tower tonight.",
+  },
+};
+export type AdvantageId = "squeak" | "trail" | "shuffle" | "shrink";
+export type Advantage = {
+  id: AdvantageId;
+  name: string;
+  description: string;
+  side: "seekers" | "todd";
+};
+export const ADVANTAGES: Record<AdvantageId, Advantage> = {
+  squeak: {
+    id: "squeak",
+    name: "A tiny squeak",
+    description: "Reveal which half of the castle Todd is hiding in.",
+    side: "seekers",
+  },
+  trail: {
+    id: "trail",
+    name: "Token trail",
+    description: "Rule out two hiding spots for this round.",
+    side: "seekers",
+  },
+  shuffle: {
+    id: "shuffle",
+    name: "One more escape",
+    description: "Todd relocates once before the searches resolve.",
+    side: "todd",
+  },
+  shrink: {
+    id: "shrink",
+    name: "Pocket-sized trouble",
+    description: "Todd gains access to the tiny attic this round.",
+    side: "todd",
+  },
+};
+export type CheerResult = {
+  side: "seekers" | "todd" | "tie";
+  method: "microphone" | "manual";
+  seekers: number;
+  todd: number;
+  advantage: AdvantageId | null;
+};
+export type LiveEvent = {
+  id: number;
+  round: number;
+  text: string;
+  kind: "info" | "seek" | "trap" | "heal" | "todd";
+  mode?: "ai" | "fallback";
+};
+export type PublicRoom = {
+  code: string;
+  phase: Phase;
+  round: number;
+  maxRounds: number;
+  players: Player[];
+  pets: LivePet[];
+  submitted: string[];
+  constraint: Constraint;
+  events: LiveEvent[];
+  claim: string;
+  clue: string | null;
+  ruledOut: string[];
+  cards: AdvantageId[];
+  cheer: CheerResult | null;
+  outcome: "caught" | "escaped" | null;
+  reveal: { location: string; summary: string; stats: Stats } | null;
+  ai: { configured: boolean; model: string; fallbackCount: number };
+  generation: number;
+};
+export type Session = {
+  roomCode: string;
+  token: string;
+  role: "host" | "player";
+  playerId?: string;
+};
+export type Reply<T = undefined> =
+  { ok: true; data: T } | { ok: false; error: string };
+
+export function accessible(pet: { stats: Stats }, locationId: string): boolean {
+  const gate = GATES[locationId];
+  return (
+    LIVE_LOCATIONS.some((l) => l.id === locationId) &&
+    (!gate || pet.stats[gate.stat] >= gate.min)
+  );
+}
+
+// Largest-remainder allocation with a floor of 1 and a ceiling of 8 per stat.
+// Never trust a model's proposed total or let an image purchase a stronger card.
+export function balanceStats(input: Partial<Stats>): Stats {
+  const weights = STAT_KEYS.map((k) =>
+    Number.isFinite(input[k]) ? Math.max(1, Math.min(20, Number(input[k]))) : 4,
+  );
+  const values = STAT_KEYS.map(() => 1);
+  for (let point = 0; point < 15; point++) {
+    let best = -1;
+    for (let i = 0; i < values.length; i++)
+      if (
+        values[i] < 8 &&
+        (best < 0 || weights[i] / values[i] > weights[best] / values[best])
+      )
+        best = i;
+    values[best]++;
+  }
+  return Object.fromEntries(STAT_KEYS.map((k, i) => [k, values[i]])) as Stats;
+}
+
+export function validatePrompt(
+  prompt: unknown,
+  constraint: Constraint,
+): string | undefined {
+  if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 220)
+    return "Write a prompt between 1 and 220 characters.";
+  if (constraint === "eight" && prompt.trim().split(/\s+/u).length > 8)
+    return "This round allows at most eight words.";
+  if (
+    constraint === "emoji" &&
+    (/\p{L}/u.test(prompt) || !/\p{Extended_Pictographic}/u.test(prompt))
+  )
+    return "Use emoji only this round, with optional spaces or punctuation.";
+  if (
+    constraint === "rhyme" &&
+    prompt.trim().split(/\n+/).filter(Boolean).length !== 2
+  )
+    return "Write two lines for your rhyming couplet.";
+}
+
+export function localRhyme(prompt: string): boolean {
+  const ends = prompt
+    .trim()
+    .split(/\n+/)
+    .map((line) => line.toLowerCase().match(/[a-z]+(?=[^a-z]*$)/)?.[0] ?? "");
+  return (
+    ends.length === 2 &&
+    ends.every((e) => e.length >= 2) &&
+    ends[0].slice(-2) === ends[1].slice(-2)
+  );
+}

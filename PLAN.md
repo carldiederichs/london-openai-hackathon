@@ -1,27 +1,88 @@
-# Promptkeep prototype
+# Promptkeep task checklist
 
-Build a browser-local castle hide-and-seek game for the London OpenAI hackathon.
+This is the authoritative checklist for the hackathon game. `docs/LIVE_GAME.md`
+contains design detail, not a second task list. The first local prototype remains
+reviewable in PR #1. Live-mode changes follow on a separate branch.
 
-## Rules for the first playable version
+## Verified milestones
 
-- Ten guardians, three rounds, one action per pet per round.
-- Find the Dot three times to capture it. It flees after a sighting and at round end.
-- Move and search a location for 10 usage. Traits determine access.
-- Hidden bottle traps cost 25 usage. A hidden, single-use Tivo button refills its finder.
-- The vet restores 50 usage, capped at 100, and remains available at zero usage.
-- Breeding costs both parents 20 usage and their actions. The baby inherits their traits
-  and can act next round. A party can contain at most 16 pets.
-- Uploads are local images with player-chosen traits. No AI inference, real account
-  usage changes, online multiplayer, or microphone voting in this prototype.
+- [x] Create the public GitHub repository with a README. Repository and visibility verified.
+- [x] Build the shared-screen prototype: illustrated castle, ten pets, image uploads,
+      ability-gated hiding spots, movement/search, escaping Dot, usage limits, bottle
+      traps, hidden Tivo reset, breeding, vet, rounds, endings, and restart.
+- [x] Verify the prototype: 14 rule tests and production build passed; browser checked
+      upload, ability gating, search, breeding, baby readiness, healing, keyboard tabs,
+      round confirmation, defeat, restart, and phone layout.
+- [x] Push the prototype and make PR #1 ready before live expansion. Fresh GitHub
+      check on 2026-11-01: open, non-draft, mergeable, head `f47a33a`. No merge requested.
+- [x] Review the supplied OpenAI Showcase; relevant game and API references are in
+      `docs/LIVE_GAME.md`.
 
-## Work and verification
+## Live implementation
 
-- [x] Inspect the remote, clone an isolated checkout, and define the game rules.
-- [x] Implement the deterministic game engine and exercise rule boundaries.
-- [x] Build the illustrated castle, pet roster, action panel, uploads, and instructions.
-- [x] Run tests and production build. Play through the game in a browser and check mobile layout.
-- [x] Push the branch, open a PR, and save the verified handoff. PR #1 is open and ready for review; shared-memory save was read back.
+- [ ] Build a real 3D castle with camera controls, clickable hiding spots, animated pet
+      movement, and Todd as an OpenAI-style dot. Check WebGL rendering, location picking,
+      phone performance, and a usable fallback when WebGL is unavailable.
+- [ ] Push verified milestones regularly on the live branch; preserve PR #1 as the
+      stable first prototype. Check remote commit identity after each push.
 
-## Follow-up scope
+- [ ] **In progress**: Finalize live rules and keep the prototype's rules explicit.
+      Live rules: four rounds, one capture, ten human seekers, and Todd as the AI shadow
+      hider, rendered as an OpenAI-style dot. Todd gets distinct abilities from the
+      other pets within the same 20-point budget. Use reciprocal breeding submissions
+      for consent; the first parent owns the baby. Check: instructions and engine agree.
+- [ ] Add an authoritative room server, a host screen, QR/code joining, ten phone
+      player slots, reconnect handling, host-only round controls, and simultaneous
+      submissions. Check: separate clients join one room and cannot control each other.
+- [ ] Support image upload and a pet-description fallback during joining, with a
+      usable sprite/card for either input. Check native pet import only if a supported
+      format is documented; do not depend on private desktop storage or venue Wi-Fi.
+- [ ] Score pet cards using structured model output and enforce a fixed 20-point
+      budget across flight, smallness, speed, climb, and swim. Check: malformed totals
+      are normalized/rejected, ability gates work, and every stat affects gameplay.
+- [ ] Add constrained seeking prompts (word limit, emoji, rhyme), model-to-move
+      interpretation, and deterministic validation of ownership, action costs, and
+      accessible destinations. Check invalid/late/duplicate submissions and AI failures.
+- [ ] Add the AI-controlled hider, legal movement, a short fictional explanation,
+      a misleading public claim, and a final reveal. Check that active hiding locations
+      are not included in player/public state or explanations that spoil the hunt.
+- [ ] Carry breeding, vet recovery, bottle traps, usage exhaustion, and the hidden
+      Tivo reset into live mode. Check simultaneous resolution, consent, baby ownership,
+      and no extra actions from healing/resetting.
+- [ ] Add left-versus-right cheering: two visible advantage cards, timed microphone
+      measurements, one winning rule change per round, and a labelled manual fallback.
+      Check permissions, unavailable microphones, ties, expiry, and only one application.
+- [ ] Finish the haunted-castle host presentation, phone controls, visible AI/fallback
+      status, action animations, round results, and restart. Check rendered desktop and
+      phone layouts and keyboard/reduced-motion behavior.
 
-The user approved live phone joining, AI moves, and cheering, then prioritized making this first PR ready. The live expansion is tracked in `docs/LIVE_GAME.md` and is not included in this prototype.
+## Verification and delivery
+
+- [ ] Add and run server/rule tests for room isolation, identity, reconnects, limits,
+      duplicate round resolution, secret-state filtering, AI fallbacks, and new mechanics.
+- [ ] Play through separate host and seeker browser sessions; verify multiple players,
+      reconnect, every action, one cheering advantage, capture, escape, and reset.
+- [ ] **Blocked**: Verify real model-backed cards, seeker moves, and hider decisions.
+      Prerequisite: a working server-side `OPENAI_API_KEY`. No key was present in the
+      process environment on the previous check. Never put the key in source or chat.
+- [ ] Verify microphone capture with an available input device and verify joining
+      from a real phone on the same network. Keep simulated/browser checks distinct
+      from physical-device evidence; venue Wi-Fi client isolation may block LAN access.
+- [ ] Run final TypeScript checks, tests, production build, and source review. Preserve
+      the first prototype's passing behavior alongside live mode.
+- [ ] Update README, setup/fallback instructions, and live-game notes; push the live
+      branch and open its review PR without merging or deploying.
+- [ ] Save the final verified status and exact continuation path to shared memory,
+      then read it back. Keep any credential/device verification gaps visible.
+
+## Superseded, optional, and outside current scope
+
+- The Traitors identity-voting/elimination variant was not selected.
+- A human-controlled hider is superseded by the approved AI-controlled hider.
+- Three rounds / three sightings remains the local prototype rule, not the proposed
+  live rule. Do not silently replace the first PR's behavior.
+- Stealth is optional; it is not an extra required stat in the five-stat budget.
+- Hosted deployment, public phone access, repository merge, and teammate invitations
+  were not requested. Local rendering and a reviewable pushed PR are required.
+- A stage versus table format and exact demo length remain unconfirmed. Use four
+  rounds with explicit host pacing; do not invent a timed demo requirement.
